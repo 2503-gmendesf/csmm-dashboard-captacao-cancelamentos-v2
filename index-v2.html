@@ -1,0 +1,4556 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CSMM — Dashboard de Gestão de Alunos v2</title>
+
+  <!-- CDNs -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ============================================================
+       VARIÁVEIS GLOBAIS — Identidade Visual CSMM
+    ============================================================ */
+    :root {
+      --primary:       #003366;   /* azul-marinho */
+      --primary-light: #004d99;
+      --primary-dark:  #002244;
+      --gold:          #C9A84C;   /* dourado */
+      --gold-light:    #e0c06a;
+      --positive:      #2E7D32;   /* verde escuro */
+      --positive-light:#43A047;
+      --negative:      #C62828;   /* vermelho escuro */
+      --negative-light:#E53935;
+      --bg:            #F5F7FA;
+      --card-bg:       #FFFFFF;
+      --border:        #E0E6EF;
+      --text:          #1A2B45;
+      --text-muted:    #6B7A99;
+      --sidebar-w:     240px;
+      --header-h:      64px;
+      --radius:        10px;
+      --shadow:        0 2px 12px rgba(0,51,102,0.08);
+      --shadow-lg:     0 6px 28px rgba(0,51,102,0.13);
+      --transition:    0.2s ease;
+    }
+
+    /* ============================================================
+       RESET E BASE
+    ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    button { cursor: pointer; font-family: inherit; }
+    input, select, textarea { font-family: inherit; }
+
+    /* ============================================================
+       LAYOUT PRINCIPAL
+    ============================================================ */
+    #app {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* --- HEADER --- */
+    #header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--header-h);
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      z-index: 100;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.18);
+    }
+
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .logo-shield {
+      width: 40px;
+      height: 40px;
+      background: var(--gold);
+      border-radius: 8px 8px 16px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .logo-shield svg {
+      width: 24px;
+      height: 24px;
+      fill: var(--primary);
+    }
+
+    .header-titles {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+    }
+
+    .header-brand {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--gold);
+      letter-spacing: 1px;
+    }
+
+    .header-subtitle {
+      font-size: 11px;
+      font-weight: 400;
+      color: rgba(255,255,255,0.7);
+      letter-spacing: 0.5px;
+    }
+
+    .header-divider {
+      width: 1px;
+      height: 32px;
+      background: rgba(255,255,255,0.2);
+      margin: 0 20px;
+    }
+
+    /* Nav tabs no header */
+    .header-nav {
+      display: flex;
+      gap: 4px;
+      flex: 1;
+    }
+
+    .nav-tab {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      color: rgba(255,255,255,0.7);
+      font-size: 13px;
+      font-weight: 500;
+      background: transparent;
+      border: none;
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+
+    .nav-tab:hover {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+    }
+
+    .nav-tab.active {
+      background: var(--gold);
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .nav-tab svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    .header-spacer { flex: 1; }
+
+    .header-info {
+      font-size: 11px;
+      color: rgba(255,255,255,0.5);
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* --- CONTEÚDO PRINCIPAL --- */
+    #main-content {
+      margin-top: var(--header-h);
+      flex: 1;
+      min-height: calc(100vh - var(--header-h));
+    }
+
+    /* --- PÁGINAS / SEÇÕES --- */
+    .page {
+      display: none;
+      padding: 28px 32px;
+      animation: fadeIn 0.25s ease;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ============================================================
+       PAINEL DE IMPORTAÇÃO / STATUS
+    ============================================================ */
+    .import-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 20px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+      flex-wrap: wrap;
+    }
+
+    .import-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ccc;
+      flex-shrink: 0;
+    }
+
+    .status-dot.loaded  { background: var(--positive); }
+    .status-dot.empty   { background: #ccc; }
+
+    .status-text {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .status-text strong { color: var(--text); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+
+    .btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-primary:hover { background: var(--primary-light); }
+
+    .btn-gold {
+      background: var(--gold);
+      color: var(--primary);
+    }
+    .btn-gold:hover { background: var(--gold-light); }
+
+    .btn-danger {
+      background: #fff;
+      color: var(--negative);
+      border: 1.5px solid var(--negative);
+    }
+    .btn-danger:hover { background: var(--negative); color: #fff; }
+
+    .btn-outline {
+      background: #fff;
+      color: var(--primary);
+      border: 1.5px solid var(--primary);
+    }
+    .btn-outline:hover { background: var(--primary); color: #fff; }
+
+    .btn-sm {
+      padding: 5px 12px;
+      font-size: 12px;
+    }
+
+    .btn-icon {
+      padding: 7px;
+      border-radius: 8px;
+    }
+
+    /* Input file escondido */
+    input[type="file"] { display: none; }
+
+    /* ============================================================
+       ESTADO VAZIO
+    ============================================================ */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 64px 24px;
+      text-align: center;
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      border: 2px dashed var(--border);
+    }
+
+    .empty-icon {
+      width: 72px;
+      height: 72px;
+      background: var(--bg);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .empty-icon svg {
+      width: 36px;
+      height: 36px;
+      stroke: var(--text-muted);
+    }
+
+    .empty-state h3 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .empty-state p {
+      font-size: 14px;
+      color: var(--text-muted);
+      max-width: 360px;
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+
+    /* ============================================================
+       CARDS DE KPI
+    ============================================================ */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .kpi-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      box-shadow: var(--shadow);
+      border-left: 4px solid var(--primary);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card::after {
+      content: '';
+      position: absolute;
+      top: -20px; right: -20px;
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: rgba(0,51,102,0.04);
+    }
+
+    .kpi-card.positive { border-left-color: var(--positive); }
+    .kpi-card.negative { border-left-color: var(--negative); }
+    .kpi-card.gold     { border-left-color: var(--gold); }
+    .kpi-card.neutral  { border-left-color: var(--text-muted); }
+
+    .kpi-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .kpi-value {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .kpi-value.positive { color: var(--positive); }
+    .kpi-value.negative { color: var(--negative); }
+    .kpi-value.gold     { color: var(--gold); }
+
+    .kpi-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .kpi-icon {
+      position: absolute;
+      top: 16px; right: 16px;
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,51,102,0.06);
+    }
+
+    .kpi-card.positive .kpi-icon { background: rgba(46,125,50,0.1); }
+    .kpi-card.negative .kpi-icon { background: rgba(198,40,40,0.1); }
+    .kpi-card.gold     .kpi-icon { background: rgba(201,168,76,0.12); }
+
+    .kpi-icon svg { width: 18px; height: 18px; stroke: var(--primary); }
+    .kpi-card.positive .kpi-icon svg { stroke: var(--positive); }
+    .kpi-card.negative .kpi-icon svg { stroke: var(--negative); }
+    .kpi-card.gold     .kpi-icon svg { stroke: var(--gold); }
+
+    /* ============================================================
+       SEÇÃO DE GRÁFICOS
+    ============================================================ */
+    .charts-grid {
+      display: grid;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+
+    .charts-grid-2 { grid-template-columns: 1fr 1fr; }
+    .charts-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+    .chart-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .chart-card.span-2 { grid-column: span 2; }
+    .chart-card.span-3 { grid-column: span 3; }
+
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .chart-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .chart-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .chart-container {
+      position: relative;
+      width: 100%;
+    }
+
+    /* ============================================================
+       FILTROS
+    ============================================================ */
+    .filters-panel {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+
+    .filters-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .filters-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .filters-title svg { width: 14px; height: 14px; stroke: var(--primary); }
+
+    .filters-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+      align-items: end;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .filter-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .filter-input {
+      width: 100%;
+      height: 36px;
+      padding: 0 10px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--bg);
+      transition: var(--transition);
+      outline: none;
+    }
+
+    .filter-input:focus {
+      border-color: var(--primary);
+      background: #fff;
+    }
+
+    .filter-select {
+      height: 36px;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7A99' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 30px;
+    }
+
+    /* Multiselect customizado */
+    .multiselect-wrapper {
+      position: relative;
+    }
+
+    .multiselect-trigger {
+      width: 100%;
+      height: 36px;
+      padding: 0 30px 0 10px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--bg);
+      cursor: pointer;
+      text-align: left;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+      transition: var(--transition);
+    }
+
+    .multiselect-trigger:hover,
+    .multiselect-trigger.open {
+      border-color: var(--primary);
+      background: #fff;
+    }
+
+    .multiselect-trigger::after {
+      content: '';
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 12px;
+      height: 12px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7A99' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-size: contain;
+    }
+
+    .multiselect-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: #fff;
+      border: 1.5px solid var(--primary);
+      border-radius: 8px;
+      box-shadow: var(--shadow-lg);
+      z-index: 200;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .multiselect-dropdown.open { display: block; }
+
+    .multiselect-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: var(--transition);
+    }
+
+    .multiselect-item:hover { background: var(--bg); }
+
+    .multiselect-item input[type="checkbox"] {
+      display: inline;
+      width: 14px;
+      height: 14px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    .ms-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      margin-left: 4px;
+      flex-shrink: 0;
+    }
+
+    /* ============================================================
+       TABELA
+    ============================================================ */
+    .table-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      box-shadow: var(--shadow);
+      margin-bottom: 24px;
+    }
+
+    .table-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .table-search {
+      flex: 1;
+      max-width: 300px;
+      height: 36px;
+      padding: 0 10px 0 34px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236B7A99' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='M21 21l-4.35-4.35'/%3E%3C/svg%3E") no-repeat 10px center;
+      outline: none;
+      transition: var(--transition);
+    }
+
+    .table-search:focus {
+      border-color: var(--primary);
+      background-color: #fff;
+    }
+
+    .table-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead {
+      background: var(--primary);
+      color: #fff;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    thead th {
+      padding: 11px 14px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 12px;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      transition: var(--transition);
+    }
+
+    thead th:hover { background: var(--primary-light); }
+
+    thead th .sort-icon {
+      display: inline-block;
+      margin-left: 4px;
+      opacity: 0.5;
+      font-size: 10px;
+    }
+
+    thead th.sorted-asc .sort-icon::after   { content: '▲'; opacity: 1; }
+    thead th.sorted-desc .sort-icon::after  { content: '▼'; opacity: 1; }
+    thead th:not(.sorted-asc):not(.sorted-desc) .sort-icon::after { content: '⇅'; }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: var(--transition);
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(0,51,102,0.03); }
+
+    tbody td {
+      padding: 10px 14px;
+      vertical-align: middle;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .badge-reservado { background: #FFF3CD; color: #856404; }
+    .badge-matriculado { background: #D1ECF1; color: #0C5460; }
+    .badge-infantil { background: #E8F5E9; color: var(--positive); }
+    .badge-fundamental { background: #E3F2FD; color: #1565C0; }
+    .badge-medio { background: #F3E5F5; color: #7B1FA2; }
+    .badge-manha { background: #FFF8E1; color: #F57F17; }
+    .badge-tarde { background: #E8EAF6; color: #283593; }
+
+    /* Paginação */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 16px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pagination-info {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .pagination-controls {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .page-btn {
+      min-width: 32px;
+      height: 32px;
+      padding: 0 8px;
+      border-radius: 6px;
+      border: 1.5px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .page-btn:hover  { border-color: var(--primary); color: var(--primary); }
+    .page-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ============================================================
+       MODAIS
+    ============================================================ */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      backdrop-filter: blur(2px);
+    }
+
+    .modal-overlay.open {
+      display: flex;
+      animation: fadeIn 0.18s ease;
+    }
+
+    .modal {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      width: 100%;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-sm  { max-width: 440px; }
+    .modal-md  { max-width: 640px; }
+    .modal-lg  { max-width: 860px; }
+    .modal-xl  { max-width: 1000px; }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--primary);
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .modal-header h2 {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .modal-header p {
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+      margin-top: 2px;
+    }
+
+    .modal-close {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: #fff;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition);
+      flex-shrink: 0;
+    }
+
+    .modal-close:hover { background: rgba(255,255,255,0.25); }
+
+    .modal-body {
+      padding: 24px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-shrink: 0;
+      background: var(--bg);
+    }
+
+    /* Modal de mapeamento */
+    .mapping-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .mapping-table th,
+    .mapping-table td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .mapping-table th {
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      background: var(--bg);
+    }
+
+    .mapping-table td:first-child {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .mapping-required::after {
+      content: ' *';
+      color: var(--negative);
+    }
+
+    .mapping-select {
+      width: 100%;
+      height: 34px;
+      padding: 0 8px;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff;
+      outline: none;
+    }
+
+    .mapping-select:focus { border-color: var(--primary); }
+
+    .mapping-auto-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      background: #E8F5E9;
+      color: var(--positive);
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    /* Modal de confirmação */
+    .confirm-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+    }
+
+    .confirm-icon.danger { background: rgba(198,40,40,0.1); }
+    .confirm-icon svg { width: 28px; height: 28px; }
+    .confirm-icon.danger svg { stroke: var(--negative); }
+
+    /* ============================================================
+       SPINNER / LOADING
+    ============================================================ */
+    .spinner-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(255,255,255,0.7);
+      z-index: 600;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+      backdrop-filter: blur(2px);
+    }
+
+    .spinner-overlay.open { display: flex; }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .spinner-text {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    /* ============================================================
+       TOAST / NOTIFICAÇÕES
+    ============================================================ */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 700;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 18px;
+      border-radius: 10px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: var(--shadow-lg);
+      animation: slideUp 0.25s ease;
+      min-width: 280px;
+      max-width: 400px;
+    }
+
+    .toast.success { background: var(--positive); }
+    .toast.error   { background: var(--negative); }
+    .toast.warning { background: #E65100; }
+
+    .toast svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ============================================================
+       SEÇÃO DE TÍTULOS
+    ============================================================ */
+    .section-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 4px;
+    }
+
+    .section-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .section-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 28px 0 20px;
+    }
+
+    .section-divider-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .section-divider-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    /* ============================================================
+       AVISO / ALERTA
+    ============================================================ */
+    .alert {
+      padding: 14px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .alert-info    { background: #E3F2FD; color: #1565C0; border: 1px solid #BBDEFB; }
+    .alert-warning { background: #FFF8E1; color: #E65100; border: 1px solid #FFECB3; }
+    .alert-error   { background: #FFEBEE; color: var(--negative); border: 1px solid #FFCDD2; }
+    .alert-success { background: #E8F5E9; color: var(--positive); border: 1px solid #C8E6C9; }
+
+    .alert svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ============================================================
+       SCROLLBAR CUSTOMIZADA
+    ============================================================ */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #C5CDD9; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #9BACC0; }
+
+    /* ============================================================
+       RESPONSIVIDADE
+    ============================================================ */
+    @media (max-width: 900px) {
+      .page { padding: 20px 16px; }
+      .charts-grid-2 { grid-template-columns: 1fr; }
+      .charts-grid-3 { grid-template-columns: 1fr; }
+      .chart-card.span-2 { grid-column: span 1; }
+      .chart-card.span-3 { grid-column: span 1; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .header-info { display: none; }
+    }
+
+    @media (max-width: 600px) {
+      .nav-tab span { display: none; }
+      .kpi-grid { grid-template-columns: 1fr 1fr; }
+      .filters-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ============================================================
+       ESTRUTURA DO HTML DAS PÁGINAS
+       (conteúdo dinâmico gerado via JS — placeholders aqui)
+    ============================================================ */
+    #page-cancelamentos,
+    #page-captacao,
+    #page-visao-geral {
+      /* estilos específicos adicionados inline via JS quando necessário */
+    }
+
+    /* Legenda de gráficos customizada */
+    .chart-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 12px;
+      justify-content: center;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .legend-line {
+      width: 20px;
+      height: 3px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    /* Visão Geral — cards grandes */
+    .overview-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+
+    .overview-kpi-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+
+    .overview-kpi-card.ov-positive { border-top: 4px solid var(--positive); }
+    .overview-kpi-card.ov-negative { border-top: 4px solid var(--negative); }
+    .overview-kpi-card.ov-saldo    { border-top: 4px solid var(--gold); }
+    .overview-kpi-card.ov-retencao { border-top: 4px solid var(--primary); }
+
+    .overview-kpi-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+
+    .overview-kpi-value {
+      font-size: 42px;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .overview-kpi-value.ov-positive { color: var(--positive); }
+    .overview-kpi-value.ov-negative { color: var(--negative); }
+    .overview-kpi-value.ov-saldo    { color: var(--gold); }
+    .overview-kpi-value.ov-retencao { color: var(--primary); }
+
+    .overview-kpi-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    @media (max-width: 900px) {
+      .overview-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 500px) {
+      .overview-kpi-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============================================================
+     SPINNER DE LOADING
+============================================================ -->
+<div id="spinner" class="spinner-overlay">
+  <div class="spinner"></div>
+  <div class="spinner-text" id="spinner-text">Processando...</div>
+</div>
+
+<!-- ============================================================
+     CONTAINER DE TOASTS
+============================================================ -->
+<div id="toast-container"></div>
+
+<!-- ============================================================
+     MODAL DE CONFIRMAÇÃO (genérico — reutilizado)
+============================================================ -->
+<div id="modal-confirm" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-body" style="text-align:center; padding: 32px 24px;">
+      <div class="confirm-icon danger">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/>
+        </svg>
+      </div>
+      <h3 id="confirm-title" style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px;">Confirmar ação</h3>
+      <p id="confirm-msg" style="font-size:13px;color:var(--text-muted);line-height:1.6;"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="btn-confirm-cancel">Cancelar</button>
+      <button class="btn btn-danger" id="btn-confirm-ok">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL DE MAPEAMENTO DE COLUNAS
+============================================================ -->
+<div id="modal-mapping" class="modal-overlay">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div>
+        <h2>🗂️ Mapeamento de Colunas</h2>
+        <p id="mapping-subtitle">Confirme ou ajuste o mapeamento das colunas da planilha</p>
+      </div>
+      <button class="modal-close" id="btn-mapping-close">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-info" style="margin-bottom:16px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <span>O sistema detectou automaticamente as colunas mais prováveis. Verifique e ajuste se necessário antes de importar.</span>
+      </div>
+      <table class="mapping-table">
+        <thead>
+          <tr>
+            <th>Campo Interno</th>
+            <th>Coluna da Planilha</th>
+            <th>Detecção</th>
+          </tr>
+        </thead>
+        <tbody id="mapping-table-body">
+          <!-- Linhas inseridas via JS -->
+        </tbody>
+      </table>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:12px;">* Campos obrigatórios. Campos marcados como "— ignorar —" não serão importados.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="btn-mapping-cancel">Cancelar</button>
+      <button class="btn btn-primary" id="btn-mapping-confirm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
+        Confirmar e Importar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     APP PRINCIPAL
+============================================================ -->
+<div id="app">
+
+  <!-- HEADER -->
+  <header id="header">
+    <div class="header-logo">
+      <div class="logo-shield">
+        <!-- Ícone de escudo/educação -->
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L3 7v5c0 5.25 3.9 10.15 9 11.35C17.1 22.15 21 17.25 21 12V7L12 2z"/>
+        </svg>
+      </div>
+      <div class="header-titles">
+        <span class="header-brand">CSMM</span>
+        <span class="header-subtitle">Dashboard de Gestão de Alunos · v2</span>
+      </div>
+    </div>
+
+    <div class="header-divider"></div>
+
+    <!-- Navegação principal -->
+    <nav class="header-nav">
+      <button class="nav-tab active" data-page="cancelamentos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/>
+        </svg>
+        <span>Cancelamentos</span>
+      </button>
+
+      <button class="nav-tab" data-page="captacao">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+        </svg>
+        <span>Captação</span>
+      </button>
+
+      <button class="nav-tab" data-page="visao-geral">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+        <span>Visão Geral</span>
+      </button>
+    </nav>
+
+    <div class="header-spacer"></div>
+    <div class="header-info" id="header-info">
+      Nenhum dado carregado
+    </div>
+  </header>
+
+  <!-- CONTEÚDO PRINCIPAL -->
+  <main id="main-content">
+
+    <!-- ======================================================
+         PÁGINA 1 — CANCELAMENTOS
+    ====================================================== -->
+    <section id="page-cancelamentos" class="page active">
+      <div class="section-title">📉 Cancelamentos</div>
+      <div class="section-subtitle">Análise de alunos cancelados — RESERVADOS e MATRICULADOS que saíram</div>
+
+      <!-- Barra de importação -->
+      <div class="import-bar">
+        <div class="import-status">
+          <div class="status-dot empty" id="cancel-status-dot"></div>
+          <div class="status-text" id="cancel-status-text">Nenhuma planilha importada</div>
+        </div>
+        <label class="btn btn-primary" for="file-cancelados">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Importar Planilha
+        </label>
+        <input type="file" id="file-cancelados" accept=".xlsx,.csv" />
+        <button class="btn btn-danger" id="btn-zerar-cancelados">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+          Zerar Dados
+        </button>
+      </div>
+
+      <!-- Conteúdo dinâmico: estado vazio ou dashboard -->
+      <div id="cancel-empty" class="empty-state">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 12h6M9 16h6M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2z"/>
+          </svg>
+        </div>
+        <h3>Nenhuma planilha importada</h3>
+        <p>Importe a planilha de cancelamentos para visualizar os dados. Formatos aceitos: .xlsx e .csv</p>
+        <label class="btn btn-primary" for="file-cancelados">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Importar Planilha de Cancelamentos
+        </label>
+      </div>
+
+      <!-- Dashboard (oculto até ter dados) -->
+      <div id="cancel-dashboard" style="display:none;">
+
+        <!-- KPIs -->
+        <div class="kpi-grid" id="cancel-kpis">
+          <div class="kpi-card negative">
+            <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg></div>
+            <div class="kpi-label">Total de Cancelamentos</div>
+            <div class="kpi-value negative" id="kpi-cancel-total">0</div>
+            <div class="kpi-sub" id="kpi-cancel-sub">registros filtrados</div>
+          </div>
+          <div class="kpi-card gold">
+            <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+            <div class="kpi-label">Matr. vs Reservados</div>
+            <div class="kpi-value gold" id="kpi-cancel-split">0% / 0%</div>
+            <div class="kpi-sub">Matriculados / Reservados</div>
+          </div>
+          <div class="kpi-card neutral">
+            <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+            <div class="kpi-label">Mês com Mais Cancelamentos</div>
+            <div class="kpi-value" id="kpi-cancel-mes" style="font-size:20px;">—</div>
+            <div class="kpi-sub" id="kpi-cancel-mes-count"></div>
+          </div>
+          <div class="kpi-card neutral">
+            <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5M6 12v5c3 3 9 3 12 0v-5"/></svg></div>
+            <div class="kpi-label">Série com Mais Cancelamentos</div>
+            <div class="kpi-value" id="kpi-cancel-serie" style="font-size:20px;">—</div>
+            <div class="kpi-sub" id="kpi-cancel-serie-count"></div>
+          </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filters-panel" id="cancel-filters-panel">
+          <div class="filters-header">
+            <div class="filters-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              Filtros
+            </div>
+            <button class="btn btn-sm btn-outline" id="btn-cancel-clear-filters">Limpar Filtros</button>
+          </div>
+          <div class="filters-grid">
+            <div class="filter-group">
+              <label class="filter-label">Data Início</label>
+              <input type="date" class="filter-input" id="cancel-f-data-ini" />
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Data Fim</label>
+              <input type="date" class="filter-input" id="cancel-f-data-fim" />
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Unidade</label>
+              <div class="multiselect-wrapper" id="ms-cancel-unidade"></div>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Serviço</label>
+              <div class="multiselect-wrapper" id="ms-cancel-servico"></div>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Série / Ano</label>
+              <div class="multiselect-wrapper" id="ms-cancel-serie"></div>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Situação Anterior</label>
+              <div class="multiselect-wrapper" id="ms-cancel-situacao"></div>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Buscar Aluno</label>
+              <input type="text" class="filter-input" id="cancel-f-aluno" placeholder="Digite o nome..." />
+            </div>
+          </div>
+        </div>
+
+        <!-- Gráficos — Linha 1 -->
+        <div class="charts-grid charts-grid-2">
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Cancelamentos por Série/Ano</div>
+                <div class="chart-subtitle">Clique em uma barra para filtrar a tabela</div>
+              </div>
+            </div>
+            <div class="chart-container" style="height:280px;">
+              <canvas id="chart-cancel-serie"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Evolução Mensal</div>
+                <div class="chart-subtitle">RESERVADOS vs MATRICULADOS por mês</div>
+              </div>
+            </div>
+            <div class="chart-container" style="height:280px;">
+              <canvas id="chart-cancel-mensal"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gráficos — Linha 2 -->
+        <div class="charts-grid charts-grid-3" style="margin-top:0;">
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Situação Anterior</div>
+                <div class="chart-subtitle">Reservado vs Matriculado</div>
+              </div>
+            </div>
+            <div class="chart-container" style="height:250px;">
+              <canvas id="chart-cancel-situacao"></canvas>
+            </div>
+          </div>
+          <div class="chart-card span-2">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Ranking de Motivos</div>
+                <div class="chart-subtitle">Top 10 categorias de motivos de cancelamento</div>
+              </div>
+            </div>
+            <div class="chart-container" style="height:250px;">
+              <canvas id="chart-cancel-motivos"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gráfico — Mapa de Bolhas -->
+        <div class="charts-grid" style="grid-template-columns:1fr; margin-top:0;">
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Mapa de Bolhas — Série vs Motivo</div>
+                <div class="chart-subtitle">Tamanho da bolha = quantidade de alunos naquele cruzamento</div>
+              </div>
+            </div>
+            <div class="chart-container" style="height:360px;">
+              <canvas id="chart-cancel-bubble"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- =========================================================
+             NOVOS GRÁFICOS V2: Motivos Detalhados + Escolas Destino
+        ========================================================= -->
+        <div class="section-divider" style="margin-top:8px;">
+          <div class="section-divider-line"></div>
+          <div class="section-divider-label">🔍 Análise de Destino dos Alunos</div>
+          <div class="section-divider-line"></div>
+        </div>
+
+        <!-- Gráficos — Motivos Detalhados + Escolas de Destino lado a lado -->
+        <div class="charts-grid charts-grid-2" style="margin-bottom:20px;">
+
+          <!-- Gráfico 7: Motivos Detalhados (texto completo) -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">📝 Motivos de Cancelamento — Detalhado</div>
+                <div class="chart-subtitle">Análise das expressões mais frequentes nos motivos informados</div>
+              </div>
+              <!-- Toggle de visualização -->
+              <div style="display:flex;gap:6px;">
+                <button class="btn btn-sm btn-outline" id="btn-motivos-toggle" title="Alternar entre categorias e texto livre">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M4 6h16M4 12h8M4 18h4"/></svg>
+                  Modo Texto
+                </button>
+              </div>
+            </div>
+            <!-- Sub-abas dentro do card -->
+            <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:14px;">
+              <button class="motivos-tab active" data-tab="categorias"
+                style="padding:6px 14px;font-size:12px;font-weight:600;background:none;border:none;border-bottom:2px solid var(--negative);color:var(--negative);cursor:pointer;">
+                Por Categoria
+              </button>
+              <button class="motivos-tab" data-tab="frases"
+                style="padding:6px 14px;font-size:12px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-muted);cursor:pointer;">
+                Frases Frequentes
+              </button>
+            </div>
+            <!-- Painel Categorias (padrão) -->
+            <div id="painel-categorias" class="chart-container" style="height:280px;">
+              <canvas id="chart-cancel-motivos-det"></canvas>
+            </div>
+            <!-- Painel Frases Frequentes (oculto inicialmente) -->
+            <div id="painel-frases" class="chart-container" style="height:280px;display:none;">
+              <canvas id="chart-cancel-frases"></canvas>
+            </div>
+          </div>
+
+          <!-- Gráfico 8: Escolas de Destino -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">🏫 Escolas de Destino dos Alunos</div>
+                <div class="chart-subtitle">Para onde os alunos foram após o cancelamento</div>
+              </div>
+              <div id="escolas-destino-info"
+                style="font-size:11px;color:var(--text-muted);text-align:right;max-width:140px;line-height:1.4;">
+              </div>
+            </div>
+            <!-- Toggle: lista de escolas identificadas / análise por texto -->
+            <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
+              <select id="select-escolas-fonte" class="filter-input filter-select"
+                style="height:30px;font-size:12px;max-width:220px;">
+                <option value="coluna">Coluna "Escola Destino"</option>
+                <option value="motivo">Extrair do Motivo (auto)</option>
+                <option value="ambos">Ambos combinados</option>
+              </select>
+            </div>
+            <div class="chart-container" style="height:262px;">
+              <canvas id="chart-cancel-escolas"></canvas>
+            </div>
+            <!-- Resumo abaixo do gráfico -->
+            <div id="escolas-sem-info"
+              style="margin-top:10px;font-size:12px;color:var(--text-muted);text-align:center;display:none;">
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Gráfico 9: Mapa de calor Série × Escola Destino -->
+        <div class="charts-grid" style="grid-template-columns:1fr;margin-bottom:20px;">
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">🔥 Mapa de Bolhas — Série vs Escola de Destino</div>
+                <div class="chart-subtitle">Identifica para qual escola cada série migrou em maior volume</div>
+              </div>
+            </div>
+            <div class="chart-container" style="height:340px;">
+              <canvas id="chart-cancel-bubble-escolas"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabela detalhada -->
+        <div class="section-divider">
+          <div class="section-divider-line"></div>
+          <div class="section-divider-label">📋 Tabela Detalhada</div>
+          <div class="section-divider-line"></div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-toolbar">
+            <input type="text" class="table-search" id="cancel-table-search" placeholder="Buscar na tabela..." />
+            <div class="table-actions">
+              <button class="btn btn-sm btn-outline" id="btn-cancel-export">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exportar CSV
+              </button>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table id="cancel-table">
+              <thead>
+                <tr>
+                  <th data-col="registro">Registro<span class="sort-icon"></span></th>
+                  <th data-col="nomeAluno">Aluno<span class="sort-icon"></span></th>
+                  <th data-col="serieModulo">Série<span class="sort-icon"></span></th>
+                  <th data-col="servico">Serviço<span class="sort-icon"></span></th>
+                  <th data-col="turno">Turno<span class="sort-icon"></span></th>
+                  <th data-col="dataEvento">Data<span class="sort-icon"></span></th>
+                  <th data-col="situacaoAnterior">Situação<span class="sort-icon"></span></th>
+                  <th data-col="motivoCancelamento">Motivo<span class="sort-icon"></span></th>
+                  <th data-col="escolaDestino">Escola Destino<span class="sort-icon"></span></th>
+                </tr>
+              </thead>
+              <tbody id="cancel-tbody"></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="cancel-pagination"></div>
+        </div>
+
+      </div><!-- /cancel-dashboard -->
+    </section>
+
+    <!-- ======================================================
+         PÁGINA 2 — CAPTAÇÃO
+    ====================================================== -->
+    <section id="page-captacao" class="page">
+      <div class="section-title">📈 Captação</div>
+      <div class="section-subtitle">Análise de novas matrículas e captação de alunos</div>
+
+      <!-- Barra de importação -->
+      <div class="import-bar">
+        <div class="import-status">
+          <div class="status-dot empty" id="cap-status-dot"></div>
+          <div class="status-text" id="cap-status-text">Nenhuma planilha importada</div>
+        </div>
+        <label class="btn btn-primary" for="file-captados">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Importar Planilha
+        </label>
+        <input type="file" id="file-captados" accept=".xlsx,.csv" />
+        <button class="btn btn-danger" id="btn-zerar-captados">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+          Zerar Dados
+        </button>
+      </div>
+
+      <!-- Estado vazio -->
+      <div id="cap-empty" class="empty-state">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+          </svg>
+        </div>
+        <h3>Nenhuma planilha importada</h3>
+        <p>Importe a planilha de captação para visualizar as novas matrículas. Formatos aceitos: .xlsx e .csv</p>
+        <label class="btn btn-primary" for="file-captados">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Importar Planilha de Captação
+        </label>
+      </div>
+
+      <!-- Dashboard captação -->
+      <div id="cap-dashboard" style="display:none;">
+
+        <!-- KPIs -->
+        <div class="kpi-grid">
+          <div class="kpi-card positive">
+            <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></div>
+            <div class="kpi-label">Total de Matrículas</div>
+            <div class="kpi-value positive" id="kpi-cap-total">0</div>
+            <div class="kpi-sub">registros filtrados</div>
+          </div>
+          <div class="kpi-card gold">
+            <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <div class="kpi-label">Alunos Novos (ano atual)</div>
+            <div class="kpi-value gold" id="kpi-cap-novos">0</div>
+            <div class="kpi-sub">entradas no ano corrente</div>
+          </div>
+          <div class="kpi-card neutral">
+            <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+            <div class="kpi-label">Mês com Mais Matrículas</div>
+            <div class="kpi-value" id="kpi-cap-mes" style="font-size:20px;">—</div>
+            <div class="kpi-sub" id="kpi-cap-mes-count"></div>
+          </div>
+          <div class="kpi-card neutral">
+            <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5M6 12v5c3 3 9 3 12 0v-5"/></svg></div>
+            <div class="kpi-label">Série com Mais Matrículas</div>
+            <div class="kpi-value" id="kpi-cap-serie" style="font-size:20px;">—</div>
+            <div class="kpi-sub" id="kpi-cap-serie-count"></div>
+          </div>
+        </div>
+
+        <!-- Filtros captação -->
+        <div class="filters-panel">
+          <div class="filters-header">
+            <div class="filters-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              Filtros
+            </div>
+            <button class="btn btn-sm btn-outline" id="btn-cap-clear-filters">Limpar Filtros</button>
+          </div>
+          <div class="filters-grid">
+            <div class="filter-group">
+              <label class="filter-label">Data Início</label>
+              <input type="date" class="filter-input" id="cap-f-data-ini" />
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Data Fim</label>
+              <input type="date" class="filter-input" id="cap-f-data-fim" />
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Unidade</label>
+              <div class="multiselect-wrapper" id="ms-cap-unidade"></div>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Serviço</label>
+              <div class="multiselect-wrapper" id="ms-cap-servico"></div>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Série / Ano</label>
+              <div class="multiselect-wrapper" id="ms-cap-serie"></div>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Turno</label>
+              <div class="multiselect-wrapper" id="ms-cap-turno"></div>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Buscar Aluno</label>
+              <input type="text" class="filter-input" id="cap-f-aluno" placeholder="Digite o nome..." />
+            </div>
+          </div>
+        </div>
+
+        <!-- Gráficos captação linha 1 -->
+        <div class="charts-grid charts-grid-2">
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Matrículas por Série/Ano</div>
+                <div class="chart-subtitle">Distribuição por nível de ensino</div>
+              </div>
+            </div>
+            <div class="chart-container" style="height:280px;">
+              <canvas id="chart-cap-serie"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Evolução Mensal de Matrículas</div>
+                <div class="chart-subtitle">Quantidade de novas matrículas por mês</div>
+              </div>
+            </div>
+            <div class="chart-container" style="height:280px;">
+              <canvas id="chart-cap-mensal"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gráficos captação linha 2 -->
+        <div class="charts-grid charts-grid-3" style="margin-top:0;">
+          <div class="chart-card span-2">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Matrículas por Unidade</div>
+                <div class="chart-subtitle">Ranking de unidades com mais captações</div>
+              </div>
+            </div>
+            <div class="chart-container" style="height:250px;">
+              <canvas id="chart-cap-unidade"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Distribuição por Turno</div>
+                <div class="chart-subtitle">Manhã vs Tarde</div>
+              </div>
+            </div>
+            <div class="chart-container" style="height:250px;">
+              <canvas id="chart-cap-turno"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gráfico — Mapa de Bolhas captação -->
+        <div class="charts-grid" style="grid-template-columns:1fr; margin-top:0;">
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Mapa de Bolhas — Série vs Mês de Matrícula</div>
+                <div class="chart-subtitle">Tamanho da bolha = quantidade de matrículas naquele cruzamento</div>
+              </div>
+            </div>
+            <div class="chart-container" style="height:360px;">
+              <canvas id="chart-cap-bubble"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabela captação -->
+        <div class="section-divider">
+          <div class="section-divider-line"></div>
+          <div class="section-divider-label">📋 Tabela Detalhada</div>
+          <div class="section-divider-line"></div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-toolbar">
+            <input type="text" class="table-search" id="cap-table-search" placeholder="Buscar na tabela..." />
+            <div class="table-actions">
+              <button class="btn btn-sm btn-outline" id="btn-cap-export">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exportar CSV
+              </button>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table id="cap-table">
+              <thead>
+                <tr>
+                  <th data-col="registro">Registro<span class="sort-icon"></span></th>
+                  <th data-col="nomeAluno">Aluno<span class="sort-icon"></span></th>
+                  <th data-col="unidade">Unidade<span class="sort-icon"></span></th>
+                  <th data-col="serieModulo">Série<span class="sort-icon"></span></th>
+                  <th data-col="servico">Serviço<span class="sort-icon"></span></th>
+                  <th data-col="turno">Turno<span class="sort-icon"></span></th>
+                  <th data-col="turma">Turma<span class="sort-icon"></span></th>
+                  <th data-col="dataEvento">Data Matrícula<span class="sort-icon"></span></th>
+                </tr>
+              </thead>
+              <tbody id="cap-tbody"></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="cap-pagination"></div>
+        </div>
+
+      </div><!-- /cap-dashboard -->
+    </section>
+
+    <!-- ======================================================
+         PÁGINA 3 — VISÃO GERAL
+    ====================================================== -->
+    <section id="page-visao-geral" class="page">
+      <div class="section-title">📊 Visão Geral — Balanço</div>
+      <div class="section-subtitle">Comparativo consolidado: Captação vs Cancelamentos</div>
+
+      <!-- Alertas se dados faltando -->
+      <div id="ov-alerts"></div>
+
+      <!-- KPIs grandes -->
+      <div class="overview-kpi-grid">
+        <div class="overview-kpi-card ov-positive">
+          <div class="overview-kpi-label">Total Captados</div>
+          <div class="overview-kpi-value ov-positive" id="ov-kpi-cap">0</div>
+          <div class="overview-kpi-sub">novas matrículas</div>
+        </div>
+        <div class="overview-kpi-card ov-negative">
+          <div class="overview-kpi-label">Total Cancelados</div>
+          <div class="overview-kpi-value ov-negative" id="ov-kpi-cancel">0</div>
+          <div class="overview-kpi-sub">saídas registradas</div>
+        </div>
+        <div class="overview-kpi-card ov-saldo">
+          <div class="overview-kpi-label">Saldo</div>
+          <div class="overview-kpi-value ov-saldo" id="ov-kpi-saldo">0</div>
+          <div class="overview-kpi-sub" id="ov-kpi-saldo-sub">Captados − Cancelados</div>
+        </div>
+        <div class="overview-kpi-card ov-retencao">
+          <div class="overview-kpi-label">Taxa de Retenção</div>
+          <div class="overview-kpi-value ov-retencao" id="ov-kpi-retencao">—%</div>
+          <div class="overview-kpi-sub">1 − (cancel / base)</div>
+        </div>
+      </div>
+
+      <!-- Filtros visão geral -->
+      <div class="filters-panel">
+        <div class="filters-header">
+          <div class="filters-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            Filtros (aplicados nos dois datasets)
+          </div>
+          <button class="btn btn-sm btn-outline" id="btn-ov-clear-filters">Limpar Filtros</button>
+        </div>
+        <div class="filters-grid">
+          <div class="filter-group">
+            <label class="filter-label">Data Início</label>
+            <input type="date" class="filter-input" id="ov-f-data-ini" />
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">Data Fim</label>
+            <input type="date" class="filter-input" id="ov-f-data-fim" />
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">Serviço</label>
+            <div class="multiselect-wrapper" id="ms-ov-servico"></div>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">Série / Ano</label>
+            <div class="multiselect-wrapper" id="ms-ov-serie"></div>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">Unidade</label>
+            <div class="multiselect-wrapper" id="ms-ov-unidade"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gráficos visão geral -->
+      <div class="charts-grid charts-grid-2">
+        <div class="chart-card span-2">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Captação vs Cancelamento por Mês</div>
+              <div class="chart-subtitle">Barras agrupadas + linha de saldo (eixo secundário)</div>
+            </div>
+          </div>
+          <div class="chart-container" style="height:300px;">
+            <canvas id="chart-ov-mensal"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="charts-grid charts-grid-2" style="margin-top:0;">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Captação vs Cancelamento por Série</div>
+              <div class="chart-subtitle">Barras agrupadas por série/ano</div>
+            </div>
+          </div>
+          <div class="chart-container" style="height:280px;">
+            <canvas id="chart-ov-serie"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Balanço por Unidade</div>
+              <div class="chart-subtitle">Saldo = Captados − Cancelados por unidade</div>
+            </div>
+          </div>
+          <div class="chart-container" style="height:280px;">
+            <canvas id="chart-ov-unidade"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="charts-grid" style="grid-template-columns:1fr; margin-top:0;">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Mapa de Bolhas Combinado — Série vs Mês</div>
+              <div class="chart-subtitle">Verde = Captados · Vermelho = Cancelados · Tamanho = Quantidade</div>
+            </div>
+          </div>
+          <div class="chart-container" style="height:380px;">
+            <canvas id="chart-ov-bubble"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="charts-grid" style="grid-template-columns:1fr; margin-top:0;">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Evolução Acumulada ao Longo do Tempo</div>
+              <div class="chart-subtitle">Área verde = captados acumulados · Área vermelha = cancelados acumulados · Linha = saldo</div>
+            </div>
+          </div>
+          <div class="chart-container" style="height:300px;">
+            <canvas id="chart-ov-area"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+</div><!-- /app -->
+
+<!-- ============================================================
+     JAVASCRIPT — será adicionado nas próximas etapas
+============================================================ -->
+<script>
+'use strict';
+
+/* ============================================================
+   MÓDULO: DataStore
+   Gerencia o estado global e a persistência no localStorage.
+   Chaves: csmm_cancelados | csmm_captados
+============================================================ */
+const DataStore = (() => {
+
+  const KEYS = {
+    cancelados: 'csmm_cancelados',
+    captados:   'csmm_captados'
+  };
+
+  // Estado em memória
+  let _state = {
+    cancelados: [],   // array de alunos normalizados
+    captados:   [],
+    canceladosMeta: null,   // { importadoEm, totalRegistros }
+    captadosMeta:   null
+  };
+
+  /* ---------- Persistência ---------- */
+
+  function salvar(tipo) {
+    try {
+      const key = KEYS[tipo];
+      const meta = tipo === 'cancelados' ? _state.canceladosMeta : _state.captadosMeta;
+      const dados = tipo === 'cancelados' ? _state.cancelados : _state.captados;
+      localStorage.setItem(key, JSON.stringify({ meta, dados }));
+    } catch (e) {
+      console.error('Erro ao salvar no localStorage:', e);
+      UIManager.toast('Erro ao salvar dados no navegador. O armazenamento pode estar cheio.', 'error');
+    }
+  }
+
+  function carregar(tipo) {
+    try {
+      const raw = localStorage.getItem(KEYS[tipo]);
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      if (tipo === 'cancelados') {
+        _state.cancelados     = parsed.dados || [];
+        _state.canceladosMeta = parsed.meta  || null;
+      } else {
+        _state.captados     = parsed.dados || [];
+        _state.captadosMeta = parsed.meta  || null;
+      }
+      return true;
+    } catch (e) {
+      console.error('Erro ao carregar localStorage:', e);
+      return false;
+    }
+  }
+
+  function limpar(tipo) {
+    localStorage.removeItem(KEYS[tipo]);
+    if (tipo === 'cancelados') {
+      _state.cancelados     = [];
+      _state.canceladosMeta = null;
+    } else {
+      _state.captados     = [];
+      _state.captadosMeta = null;
+    }
+  }
+
+  /* ---------- Setters ---------- */
+
+  function setCancelados(dados) {
+    _state.cancelados = dados;
+    _state.canceladosMeta = {
+      importadoEm:    new Date().toLocaleString('pt-BR'),
+      totalRegistros: dados.length
+    };
+    salvar('cancelados');
+  }
+
+  function setCaptados(dados) {
+    _state.captados = dados;
+    _state.captadosMeta = {
+      importadoEm:    new Date().toLocaleString('pt-BR'),
+      totalRegistros: dados.length
+    };
+    salvar('captados');
+  }
+
+  /* ---------- Getters ---------- */
+
+  function getCancelados()     { return _state.cancelados; }
+  function getCaptados()       { return _state.captados; }
+  function getCanceladosMeta() { return _state.canceladosMeta; }
+  function getCaptadosMeta()   { return _state.captadosMeta; }
+  function temCancelados()     { return _state.cancelados.length > 0; }
+  function temCaptados()       { return _state.captados.length > 0; }
+
+  /* ---------- Init ---------- */
+
+  function init() {
+    carregar('cancelados');
+    carregar('captados');
+  }
+
+  return {
+    init,
+    setCancelados, getCancelados, getCanceladosMeta, temCancelados,
+    setCaptados,   getCaptados,   getCaptadosMeta,   temCaptados,
+    limpar
+  };
+})();
+
+
+/* ============================================================
+   MÓDULO: Normalizer
+   Normaliza os dados brutos da planilha para o modelo interno.
+============================================================ */
+const Normalizer = (() => {
+
+  /* ---------- Ordens de exibição ---------- */
+  const ORDEM_SERIES = [
+    'Berçário', 'Maternal I', 'Maternal II',
+    '1º Ano', '2º Ano', '3º Ano', '4º Ano', '5º Ano',
+    '6º Ano', '7º Ano', '8º Ano', '9º Ano',
+    '1ª Série', '2ª Série', '3ª Série'
+  ];
+
+  /* ---------- Normalização de Serviço ---------- */
+  function normalizarServico(raw) {
+    if (!raw) return '';
+    const s = removerAcentos(String(raw).toLowerCase().trim());
+    if (/infantil/.test(s) || /educ.*inf/.test(s))   return 'Educação Infantil';
+    if (/medio|média|médio|ens.*med/.test(s))         return 'Ensino Médio';
+    if (/fund|ensino.*fund|ens.*fund/.test(s))        return 'Ensino Fundamental';
+    return toTitleCase(String(raw).trim());
+  }
+
+  /* ---------- Normalização de Série / Módulo ---------- */
+  function normalizarSerie(raw) {
+    if (!raw) return '';
+    const s = removerAcentos(String(raw).toLowerCase().trim());
+
+    // Padrão "Nº Ano" ou "N Ano"
+    const matchAno = s.match(/(\d+)[ºo°\s]?\s*ano/);
+    if (matchAno) return `${matchAno[1]}º Ano`;
+
+    // Padrão "Nª Série" ou "N Serie"
+    const matchSerie = s.match(/(\d+)[ªa\s]?\s*ser/);
+    if (matchSerie) return `${matchSerie[1]}ª Série`;
+
+    // Berçário / Maternal
+    if (/bercario|berçário/.test(s)) return 'Berçário';
+    if (/maternal\s*i[^i]|maternal\s*1/.test(s)) return 'Maternal I';
+    if (/maternal\s*ii|maternal\s*2/.test(s))    return 'Maternal II';
+    if (/maternal/.test(s))                      return 'Maternal I';
+
+    // Jardim / Pré
+    if (/jardim/.test(s)) return 'Jardim';
+    if (/pre|pré/.test(s)) return 'Pré-Escola';
+
+    return toTitleCase(String(raw).trim());
+  }
+
+  /* ---------- Normalização de Turno ---------- */
+  function normalizarTurno(raw) {
+    if (!raw) return '';
+    const s = removerAcentos(String(raw).toLowerCase().trim());
+    if (/manha|manhã/.test(s))  return 'Manhã';
+    if (/tarde/.test(s))        return 'Tarde';
+    if (/integral/.test(s))     return 'Integral';
+    if (/noite|notur/.test(s))  return 'Noite';
+    return toTitleCase(String(raw).trim());
+  }
+
+  /* ---------- Parse de datas ---------- */
+  function parseData(raw) {
+    if (!raw) return null;
+
+    // Se já é número (serial do Excel)
+    if (typeof raw === 'number') {
+      const d = new Date(Math.round((raw - 25569) * 86400 * 1000));
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    const s = String(raw).trim();
+
+    // DD/MM/AAAA ou DD-MM-AAAA
+    const m1 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if (m1) {
+      const ano = m1[3].length === 2 ? '20' + m1[3] : m1[3];
+      const d = new Date(`${ano}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}`);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    // AAAA-MM-DD
+    const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m2) {
+      const d = new Date(s.substring(0, 10));
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    // ISO string
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  /* ---------- Extração de anoEntrada ---------- */
+  function extrairAnoEntrada(registro) {
+    const s = String(registro || '').trim();
+    if (s.length >= 2) {
+      const prefix = parseInt(s.substring(0, 2), 10);
+      // Se prefixo parece razoável (20xx → 2020-2030, ou 14-26)
+      if (prefix >= 14 && prefix <= 50) return 2000 + prefix;
+      if (prefix >= 51 && prefix <= 99) return 1900 + prefix;
+    }
+    return new Date().getFullYear();
+  }
+
+  /* ---------- Title Case ---------- */
+  function toTitleCase(str) {
+    const minusculas = ['de','da','do','das','dos','e','a','o','em','no','na','com','para','por'];
+    return str.toLowerCase().replace(/(?:^|\s)\S/g, (char, idx) => {
+      const word = str.toLowerCase().substring(idx).split(/\s/)[0];
+      return (idx !== 0 && minusculas.includes(word))
+        ? char.toLowerCase()
+        : char.toUpperCase();
+    });
+  }
+
+  /* ---------- Remover acentos ---------- */
+  function removerAcentos(str) {
+    return str.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  }
+
+  /* ---------- Processar um registro com o mapeamento ---------- */
+  function processarRegistro(linha, mapeamento, tipo) {
+    const get = (campo) => {
+      const coluna = mapeamento[campo];
+      if (!coluna || coluna === '__ignorar__') return '';
+      return linha[coluna] !== undefined && linha[coluna] !== null ? linha[coluna] : '';
+    };
+
+    const registro   = String(get('registro') || '').trim();
+    const nomeRaw    = String(get('nomeAluno') || '').trim();
+
+    const obj = {
+      registro:           registro,
+      anoEntrada:         extrairAnoEntrada(registro),
+      nomeAluno:          nomeRaw ? toTitleCase(nomeRaw) : '',
+      unidade:            toTitleCase(String(get('unidade') || '').trim()),
+      servico:            normalizarServico(get('servico')),
+      serieModulo:        normalizarSerie(get('serieModulo')),
+      turno:              normalizarTurno(get('turno')),
+      turma:              String(get('turma') || '').trim().toUpperCase(),
+      dataEvento:         parseData(get('dataEvento')),
+      situacaoAnterior:   String(get('situacaoAnterior') || '').trim().toUpperCase() || null,
+      motivoCancelamento: String(get('motivoCancelamento') || '').trim() || null,
+      escolaDestino:      normalizarEscolaDestino(String(get('escolaDestino') || '').trim(), String(get('motivoCancelamento') || '')),
+      tipo:               tipo  // 'CANCELADO' | 'CAPTADO'
+    };
+
+    // Normalizar situação anterior
+    if (obj.situacaoAnterior) {
+      if (/reserv/.test(obj.situacaoAnterior.toLowerCase())) obj.situacaoAnterior = 'RESERVADO';
+      else if (/matr/.test(obj.situacaoAnterior.toLowerCase())) obj.situacaoAnterior = 'MATRICULADO';
+    }
+
+    return obj;
+  }
+
+  /* ---------- Normalizar escola de destino ----------
+     Tenta extrair o nome da escola de:
+     1. Campo dedicado "escolaDestino" da planilha
+     2. Texto livre do campo "motivoCancelamento"
+     Retorna string normalizada ou null.
+  -------------------------------------------------------- */
+  function normalizarEscolaDestino(campoDestino, textoMotivo) {
+    // Se há coluna dedicada, usa ela
+    if (campoDestino && campoDestino.length > 2) {
+      return toTitleCase(campoDestino.trim());
+    }
+
+    // Tenta extrair do texto do motivo
+    if (!textoMotivo) return null;
+    const s = removerAcentos(textoMotivo.toLowerCase());
+
+    // Padrões de extração: "foi para X", "transferido para X", "matriculado na X",
+    // "outra escola: X", "colégio X", "escola X"
+    const padroes = [
+      /(?:foi para|transferido para|transferida para|matriculado(?:a)? (?:n[ao]|em)|mudou para|optou pelo?a?)\s+([^,.\n]{4,50})/i,
+      /(?:colegio|colégio|escola|instituto|centro|cesmm|cefet|if|senai)\s+([a-záéíóúãõçâêîôûàèìòùüäëïöü\s]+)/i,
+      /(?:outra escola|outra instituicao|outra instituição)[:\s]+([^,.\n]{4,50})/i
+    ];
+
+    for (const re of padroes) {
+      const m = textoMotivo.match(re);
+      if (m && m[1] && m[1].trim().length > 2) {
+        const nome = toTitleCase(m[1].trim().replace(/[.;,]$/, ''));
+        if (nome.length > 2 && nome.length < 60) return nome;
+      }
+    }
+
+    return null;
+  }
+
+  /* ---------- Categorizar motivo ---------- */
+  const CATEGORIAS_MOTIVO = [
+    { cat: 'Escola Pública',     keywords: ['publica','pública','estado','municipal','estadual','governo'] },
+    { cat: 'Escola Particular',  keywords: ['particular','outra escola','outra instituicao','concorrente','transferencia'] },
+    { cat: 'Financeiro',         keywords: ['financ','mensalit','custo','valor','caro','bolsa','desconto','pagar','pagamento'] },
+    { cat: 'Mudança/Cidade',     keywords: ['mudanca','mudança','cidade','bairro','endereco','endereço','estado','regiao'] },
+    { cat: 'Insatisfação',       keywords: ['insatisf','qualidade','atendimento','estrutura','problemas','reclamacao','reclamação'] },
+    { cat: 'Distância',          keywords: ['distancia','distância','longe','transporte','locomocao','locomoção'] },
+    { cat: 'Saúde',              keywords: ['saude','saúde','doenca','doença','medic','tratamento','cirurgia'] },
+    { cat: 'Familiar/Pessoal',   keywords: ['familia','familiar','pessoal','particular','pai','mae','mãe','falecimento'] },
+    { cat: 'Não Efetivou',       keywords: ['nao efetiv','não efetiv','reserva','desistiu','desistencia','desistência'] },
+    { cat: 'Outros',             keywords: [] }  // catch-all
+  ];
+
+  function categorizarMotivo(texto) {
+    if (!texto) return 'Outros';
+    const s = removerAcentos(texto.toLowerCase());
+    for (const cat of CATEGORIAS_MOTIVO) {
+      if (cat.keywords.some(k => s.includes(k))) return cat.cat;
+    }
+    return 'Outros';
+  }
+
+  /* ---------- Ordenar séries ---------- */
+  function ordenarSeries(arr) {
+    return [...arr].sort((a, b) => {
+      const ia = ORDEM_SERIES.indexOf(a);
+      const ib = ORDEM_SERIES.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+  }
+
+  return {
+    processarRegistro,
+    normalizarServico,
+    normalizarSerie,
+    normalizarTurno,
+    parseData,
+    extrairAnoEntrada,
+    toTitleCase,
+    removerAcentos,
+    categorizarMotivo,
+    normalizarEscolaDestino,
+    ordenarSeries,
+    ORDEM_SERIES
+  };
+})();
+
+
+/* ============================================================
+   MÓDULO: ImportManager
+   Gerencia leitura de planilhas SheetJS e o modal de mapeamento.
+============================================================ */
+const ImportManager = (() => {
+
+  // Campos internos para cada tipo
+  const CAMPOS_CANCELADOS = [
+    { key: 'registro',           label: 'Registro',            required: true },
+    { key: 'nomeAluno',          label: 'Nome do Aluno',        required: true },
+    { key: 'unidade',            label: 'Unidade',              required: false },
+    { key: 'servico',            label: 'Serviço',              required: true },
+    { key: 'serieModulo',        label: 'Série / Módulo',       required: true },
+    { key: 'turno',              label: 'Turno',                required: false },
+    { key: 'dataEvento',         label: 'Data Cancelamento',    required: true },
+    { key: 'situacaoAnterior',   label: 'Situação Anterior',    required: false },
+    { key: 'motivoCancelamento', label: 'Motivo Cancelamento',  required: false },
+    { key: 'escolaDestino',      label: 'Escola de Destino',    required: false }
+  ];
+
+  const CAMPOS_CAPTADOS = [
+    { key: 'registro',    label: 'Registro',         required: true },
+    { key: 'nomeAluno',   label: 'Nome do Aluno',     required: true },
+    { key: 'unidade',     label: 'Unidade',           required: false },
+    { key: 'servico',     label: 'Serviço',           required: true },
+    { key: 'serieModulo', label: 'Série / Módulo',    required: true },
+    { key: 'turno',       label: 'Turno',             required: false },
+    { key: 'turma',       label: 'Turma',             required: false },
+    { key: 'dataEvento',  label: 'Data Matrícula',    required: true }
+  ];
+
+  // Mapeamento sugerido por aliases
+  const ALIASES = {
+    registro:           ['registro','matricula','matrícula','id','codigo','código','num'],
+    nomeAluno:          ['nome','aluno','aluno(a)','nome do aluno','nome aluno','estudante'],
+    unidade:            ['unidade','escola','unid','filial'],
+    servico:            ['servico','serviço','nivel','nível','curso','modalidade'],
+    serieModulo:        ['serie','série','modulo','módulo','ano','turma_serie','turno_serie'],
+    turno:              ['turno','periodo','período'],
+    turma:              ['turma','classe','cod_turma'],
+    dataEvento:         ['data','data cancelamento','data_cancelamento','data matricula','data_matricula','data matrícula','dt_cancel','dt_matricula'],
+    situacaoAnterior:   ['situacao','situação','situacao anterior','status','sit_anterior'],
+    motivoCancelamento: ['motivo','motivo cancelamento','descricao','descrição','obs','observacao','observação'],
+    escolaDestino:      ['escola destino','escola de destino','destino','escola_destino','nova escola','escola origem','concorrente','transferido para','foi para']
+  };
+
+  let _pendente = null;  // { tipo, cabecalhos, linhas, campos }
+
+  /* ---------- Detectar mapeamento automático ---------- */
+  function detectarMapeamento(cabecalhos, campos) {
+    const mapeamento = {};
+    const usados = new Set();
+
+    campos.forEach(campo => {
+      const aliases = ALIASES[campo.key] || [];
+      let melhor = null;
+
+      // Tenta match exato primeiro
+      for (const alias of aliases) {
+        for (const cab of cabecalhos) {
+          const cabNorm = Normalizer.removerAcentos(cab.toLowerCase().trim());
+          if (cabNorm === alias && !usados.has(cab)) {
+            melhor = cab;
+            break;
+          }
+        }
+        if (melhor) break;
+      }
+
+      // Se não encontrou exato, tenta substring
+      if (!melhor) {
+        for (const alias of aliases) {
+          for (const cab of cabecalhos) {
+            const cabNorm = Normalizer.removerAcentos(cab.toLowerCase().trim());
+            if ((cabNorm.includes(alias) || alias.includes(cabNorm)) && !usados.has(cab)) {
+              melhor = cab;
+              break;
+            }
+          }
+          if (melhor) break;
+        }
+      }
+
+      if (melhor) {
+        mapeamento[campo.key] = melhor;
+        usados.add(melhor);
+      } else {
+        mapeamento[campo.key] = '__ignorar__';
+      }
+    });
+
+    return mapeamento;
+  }
+
+  /* ---------- Abrir modal de mapeamento ---------- */
+  function abrirModalMapeamento(tipo, cabecalhos, linhas) {
+    const campos = tipo === 'cancelados' ? CAMPOS_CANCELADOS : CAMPOS_CAPTADOS;
+    const mapeamentoAuto = detectarMapeamento(cabecalhos, campos);
+
+    _pendente = { tipo, cabecalhos, linhas, campos, mapeamentoAuto };
+
+    // Atualiza subtítulo
+    document.getElementById('mapping-subtitle').textContent =
+      `Planilha de ${tipo === 'cancelados' ? 'Cancelamentos' : 'Captação'} — ${linhas.length} registros encontrados`;
+
+    // Preenche a tabela de mapeamento
+    const tbody = document.getElementById('mapping-table-body');
+    tbody.innerHTML = '';
+
+    campos.forEach(campo => {
+      const valorAuto = mapeamentoAuto[campo.key];
+      const autoDetectado = valorAuto !== '__ignorar__';
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="${campo.required ? 'mapping-required' : ''}">${campo.label}</td>
+        <td>
+          <select class="mapping-select" data-campo="${campo.key}">
+            <option value="__ignorar__">— ignorar —</option>
+            ${cabecalhos.map(c =>
+              `<option value="${c}" ${c === valorAuto ? 'selected' : ''}>${c}</option>`
+            ).join('')}
+          </select>
+        </td>
+        <td>
+          ${autoDetectado
+            ? `<span class="mapping-auto-badge">✓ Auto</span>`
+            : `<span style="font-size:12px;color:var(--text-muted);">Manual</span>`
+          }
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('modal-mapping').classList.add('open');
+  }
+
+  /* ---------- Confirmar mapeamento e processar ---------- */
+  function confirmarMapeamento() {
+    if (!_pendente) return;
+    const { tipo, linhas, campos } = _pendente;
+
+    // Lê o mapeamento atual dos selects
+    const mapeamento = {};
+    document.querySelectorAll('.mapping-select').forEach(sel => {
+      mapeamento[sel.dataset.campo] = sel.value;
+    });
+
+    // Valida campos obrigatórios
+    const faltando = campos
+      .filter(c => c.required && mapeamento[c.key] === '__ignorar__')
+      .map(c => c.label);
+
+    if (faltando.length > 0) {
+      UIManager.toast(`Campos obrigatórios não mapeados: ${faltando.join(', ')}`, 'error');
+      return;
+    }
+
+    fecharModal();
+    UIManager.showSpinner(`Processando ${linhas.length} registros...`);
+
+    // Processa de forma assíncrona para não travar a UI
+    setTimeout(() => {
+      try {
+        const tipoLabel = tipo === 'cancelados' ? 'CANCELADO' : 'CAPTADO';
+        const dados = linhas
+          .map(linha => Normalizer.processarRegistro(linha, mapeamento, tipoLabel))
+          .filter(r => r.registro || r.nomeAluno); // Remove linhas completamente vazias
+
+        if (tipo === 'cancelados') {
+          DataStore.setCancelados(dados);
+        } else {
+          DataStore.setCaptados(dados);
+        }
+
+        UIManager.hideSpinner();
+        UIManager.toast(`${dados.length} registros importados com sucesso!`, 'success');
+        UIManager.atualizarPagina(tipo === 'cancelados' ? 'cancelamentos' : 'captacao');
+        UIManager.atualizarStatusImportacao();
+
+        _pendente = null;
+      } catch (e) {
+        UIManager.hideSpinner();
+        UIManager.toast(`Erro ao processar planilha: ${e.message}`, 'error');
+        console.error(e);
+      }
+    }, 50);
+  }
+
+  /* ---------- Fechar modal ---------- */
+  function fecharModal() {
+    document.getElementById('modal-mapping').classList.remove('open');
+  }
+
+  /* ---------- Ler arquivo ---------- */
+  function lerArquivo(file, tipo) {
+    if (!file) return;
+
+    // Verifica extensão
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['xlsx','csv','xls'].includes(ext)) {
+      UIManager.toast('Formato de arquivo não suportado. Use .xlsx ou .csv', 'error');
+      return;
+    }
+
+    UIManager.showSpinner('Lendo planilha...');
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type: 'array', cellDates: false });
+
+        // Pega a primeira aba
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(ws, { raw: true, defval: '' });
+
+        if (json.length === 0) {
+          UIManager.hideSpinner();
+          UIManager.toast('A planilha está vazia ou não foi possível ler os dados.', 'error');
+          return;
+        }
+
+        const cabecalhos = Object.keys(json[0]);
+        UIManager.hideSpinner();
+        abrirModalMapeamento(tipo, cabecalhos, json);
+
+      } catch (err) {
+        UIManager.hideSpinner();
+        UIManager.toast(`Erro ao ler arquivo: ${err.message}`, 'error');
+        console.error(err);
+      }
+    };
+
+    reader.onerror = () => {
+      UIManager.hideSpinner();
+      UIManager.toast('Erro ao ler o arquivo. Tente novamente.', 'error');
+    };
+
+    reader.readAsArrayBuffer(file);
+  }
+
+  return {
+    lerArquivo,
+    confirmarMapeamento,
+    fecharModal
+  };
+})();
+
+
+/* ============================================================
+   MÓDULO: FilterEngine
+   Aplica filtros nos dados retornando subconjuntos filtrados.
+============================================================ */
+const FilterEngine = (() => {
+
+  /* ---------- Filtrar array de alunos ---------- */
+  function filtrar(dados, filtros) {
+    return dados.filter(a => {
+      // Período
+      if (filtros.dataIni && a.dataEvento) {
+        const dIni = new Date(filtros.dataIni + 'T00:00:00');
+        if (a.dataEvento < dIni) return false;
+      }
+      if (filtros.dataFim && a.dataEvento) {
+        const dFim = new Date(filtros.dataFim + 'T23:59:59');
+        if (a.dataEvento > dFim) return false;
+      }
+
+      // Multiselects
+      if (filtros.unidades?.length > 0 && !filtros.unidades.includes(a.unidade))       return false;
+      if (filtros.servicos?.length  > 0 && !filtros.servicos.includes(a.servico))       return false;
+      if (filtros.series?.length    > 0 && !filtros.series.includes(a.serieModulo))     return false;
+      if (filtros.situacoes?.length > 0 && !filtros.situacoes.includes(a.situacaoAnterior)) return false;
+      if (filtros.turnos?.length    > 0 && !filtros.turnos.includes(a.turno))           return false;
+
+      // Busca por aluno
+      if (filtros.nomeAluno) {
+        const q = Normalizer.removerAcentos(filtros.nomeAluno.toLowerCase());
+        const n = Normalizer.removerAcentos((a.nomeAluno || '').toLowerCase());
+        if (!n.includes(q)) return false;
+      }
+
+      return true;
+    });
+  }
+
+  /* ---------- Extrair valores únicos ---------- */
+  function valoresUnicos(dados, campo) {
+    const set = new Set();
+    dados.forEach(a => {
+      if (a[campo]) set.add(a[campo]);
+    });
+    return [...set].sort();
+  }
+
+  /* ---------- Agrupar por campo ---------- */
+  function agruparPor(dados, campo) {
+    const map = {};
+    dados.forEach(a => {
+      const k = a[campo] || 'Sem info';
+      map[k] = (map[k] || 0) + 1;
+    });
+    return map;
+  }
+
+  /* ---------- Agrupar por mês ---------- */
+  function agruparPorMes(dados) {
+    const map = {};
+    dados.forEach(a => {
+      if (!a.dataEvento) return;
+      const d = new Date(a.dataEvento);
+      const chave = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      map[chave] = (map[chave] || 0) + 1;
+    });
+    return map;
+  }
+
+  /* ---------- Formatar mês para exibição ---------- */
+  function formatarMes(chave) {
+    const [ano, mes] = chave.split('-');
+    const nomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    return `${nomes[parseInt(mes)-1]}/${ano.substring(2)}`;
+  }
+
+  /* ---------- Obter todos os meses do range ---------- */
+  function gerarMeses(dados1, dados2 = []) {
+    const todos = [...dados1, ...dados2];
+    const meses = new Set();
+    todos.forEach(a => {
+      if (!a.dataEvento) return;
+      const d = new Date(a.dataEvento);
+      meses.add(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+    });
+    return [...meses].sort();
+  }
+
+  return {
+    filtrar,
+    valoresUnicos,
+    agruparPor,
+    agruparPorMes,
+    formatarMes,
+    gerarMeses
+  };
+})();
+
+
+/* ============================================================
+   MÓDULO: ChartBuilder
+   Cria e atualiza todos os gráficos Chart.js do sistema.
+============================================================ */
+const ChartBuilder = (() => {
+
+  // Registra instâncias ativas para destruição/atualização
+  const _instancias = {};
+
+  // Paleta de cores por serviço
+  const COR_SERVICO = {
+    'Educação Infantil': '#FF8F00',
+    'Ensino Fundamental': '#1565C0',
+    'Ensino Médio': '#6A1B9A'
+  };
+
+  const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  /* ---------- Helpers ---------- */
+  function destruir(id) {
+    if (_instancias[id]) {
+      _instancias[id].destroy();
+      delete _instancias[id];
+    }
+  }
+
+  function criar(id, config) {
+    destruir(id);
+    const canvas = document.getElementById(id);
+    if (!canvas) return null;
+    const ctx = canvas.getContext('2d');
+    _instancias[id] = new Chart(ctx, config);
+    return _instancias[id];
+  }
+
+  /* ---------- Opções comuns ---------- */
+  const opcoesBase = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 500 },
+    plugins: {
+      legend: { labels: { font: { family: 'Inter', size: 11 }, color: '#1A2B45', padding: 12 } }
+    }
+  };
+
+  /* ============================================================
+     CANCELAMENTOS
+  ============================================================ */
+
+  /* 1. Barras por série */
+  function cancelSerie(dados, onClickSerie) {
+    const porSerie = FilterEngine.agruparPor(dados, 'serieModulo');
+    const series   = Normalizer.ordenarSeries(Object.keys(porSerie));
+    const valores  = series.map(s => porSerie[s]);
+
+    // Colore por serviço dominante em cada série
+    const cores = series.map(s => {
+      const itens = dados.filter(a => a.serieModulo === s);
+      const svcCount = {};
+      itens.forEach(a => { svcCount[a.servico] = (svcCount[a.servico]||0)+1; });
+      const dominante = Object.entries(svcCount).sort((a,b)=>b[1]-a[1])[0]?.[0];
+      return COR_SERVICO[dominante] || '#C62828';
+    });
+
+    return criar('chart-cancel-serie', {
+      type: 'bar',
+      data: {
+        labels: series,
+        datasets: [{
+          label: 'Cancelamentos',
+          data: valores,
+          backgroundColor: cores.map(c => c + 'CC'),
+          borderColor: cores,
+          borderWidth: 2,
+          borderRadius: 6
+        }]
+      },
+      options: {
+        ...opcoesBase,
+        onClick: (evt, elements) => {
+          if (elements.length > 0 && onClickSerie) {
+            const idx = elements[0].index;
+            onClickSerie(series[idx]);
+          }
+        },
+        plugins: {
+          ...opcoesBase.plugins,
+          tooltip: { callbacks: {
+            label: ctx => ` ${ctx.parsed.y} cancelamento(s)`,
+            title: ctx => ctx[0].label
+          }},
+          legend: { display: false }
+        },
+        scales: {
+          x: { ticks: { font: { size: 10 }, color: '#6B7A99' }, grid: { display: false } },
+          y: { ticks: { font: { size: 11 } }, grid: { color: '#E0E6EF' }, beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  /* 2. Linha por mês */
+  function cancelMensal(dados) {
+    const reservados    = dados.filter(a => a.situacaoAnterior === 'RESERVADO');
+    const matriculados  = dados.filter(a => a.situacaoAnterior === 'MATRICULADO');
+    const outros        = dados.filter(a => !['RESERVADO','MATRICULADO'].includes(a.situacaoAnterior));
+
+    const meses = FilterEngine.gerarMeses(dados);
+    const labels = meses.map(FilterEngine.formatarMes);
+
+    const contar = (subset) => meses.map(m => {
+      const [ano, mes] = m.split('-');
+      return subset.filter(a => {
+        if (!a.dataEvento) return false;
+        const d = new Date(a.dataEvento);
+        return d.getFullYear() === +ano && (d.getMonth()+1) === +mes;
+      }).length;
+    });
+
+    const datasets = [
+      { label:'Reservados',   data: contar(reservados),   borderColor:'#E65100', backgroundColor:'rgba(230,81,0,0.1)',   tension:0.4, fill:false, pointRadius:4 },
+      { label:'Matriculados', data: contar(matriculados), borderColor:'#C62828', backgroundColor:'rgba(198,40,40,0.1)',  tension:0.4, fill:false, pointRadius:4 }
+    ];
+    if (outros.length > 0)
+      datasets.push({ label:'Outros', data: contar(outros), borderColor:'#9E9E9E', backgroundColor:'rgba(158,158,158,0.1)', tension:0.4, fill:false, pointRadius:4 });
+
+    return criar('chart-cancel-mensal', {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        ...opcoesBase,
+        scales: {
+          x: { ticks: { font:{size:10}, color:'#6B7A99' }, grid:{display:false} },
+          y: { beginAtZero: true, ticks:{font:{size:11}}, grid:{color:'#E0E6EF'} }
+        }
+      }
+    });
+  }
+
+  /* 3. Donut situação anterior */
+  function cancelSituacao(dados) {
+    const reservados   = dados.filter(a => a.situacaoAnterior === 'RESERVADO').length;
+    const matriculados = dados.filter(a => a.situacaoAnterior === 'MATRICULADO').length;
+    const outros       = dados.length - reservados - matriculados;
+
+    const labels = ['Reservado','Matriculado'];
+    const values = [reservados, matriculados];
+    const colors = ['#E65100','#C62828'];
+
+    if (outros > 0) { labels.push('Outros'); values.push(outros); colors.push('#9E9E9E'); }
+
+    const total = dados.length;
+    return criar('chart-cancel-situacao', {
+      type: 'doughnut',
+      data: { labels, datasets:[{ data: values, backgroundColor: colors, borderWidth:2, borderColor:'#fff' }] },
+      options: {
+        ...opcoesBase,
+        cutout: '65%',
+        plugins: {
+          ...opcoesBase.plugins,
+          tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} (${total>0?Math.round(ctx.raw/total*100):0}%)` }},
+          legend: { position:'bottom', labels:{...opcoesBase.plugins.legend.labels} }
+        }
+      }
+    });
+  }
+
+  /* 4. Barras horizontais — ranking de motivos */
+  function cancelMotivos(dados) {
+    const categorias = {};
+    const exemplos   = {};
+    dados.forEach(a => {
+      const cat = Normalizer.categorizarMotivo(a.motivoCancelamento);
+      categorias[cat] = (categorias[cat] || 0) + 1;
+      if (!exemplos[cat]) exemplos[cat] = [];
+      if (a.motivoCancelamento && exemplos[cat].length < 3)
+        exemplos[cat].push(a.motivoCancelamento.substring(0,60));
+    });
+
+    const sorted = Object.entries(categorias)
+      .sort((a,b)=>b[1]-a[1]).slice(0,10);
+
+    const labels = sorted.map(([k]) => k);
+    const values = sorted.map(([,v]) => v);
+
+    return criar('chart-cancel-motivos', {
+      type: 'bar',
+      data: { labels, datasets:[{
+        label:'Cancelamentos',
+        data: values,
+        backgroundColor: '#C62828CC',
+        borderColor: '#C62828',
+        borderWidth: 2,
+        borderRadius: 6
+      }]},
+      options: {
+        ...opcoesBase,
+        indexAxis: 'y',
+        plugins: {
+          ...opcoesBase.plugins,
+          legend: { display:false },
+          tooltip: { callbacks: {
+            label: ctx => ` ${ctx.parsed.x} casos`,
+            afterLabel: ctx => {
+              const exs = exemplos[labels[ctx.dataIndex]] || [];
+              return exs.length ? '\nExemplos:\n' + exs.map(e=>'• '+e).join('\n') : '';
+            }
+          }}
+        },
+        scales: {
+          x: { beginAtZero:true, ticks:{font:{size:11}}, grid:{color:'#E0E6EF'} },
+          y: { ticks:{font:{size:11}, color:'#1A2B45'}, grid:{display:false} }
+        }
+      }
+    });
+  }
+
+  /* 5. Bubble chart — série vs motivo */
+  function cancelBubble(dados) {
+    const series   = Normalizer.ordenarSeries(FilterEngine.valoresUnicos(dados,'serieModulo'));
+    const motivos  = [...new Set(dados.map(a=>Normalizer.categorizarMotivo(a.motivoCancelamento)))].sort();
+
+    // Contar cruzamentos e guardar alunos
+    const mapa = {}; // "serie|motivo" -> { count, alunos }
+    dados.forEach(a => {
+      const s = a.serieModulo;
+      const m = Normalizer.categorizarMotivo(a.motivoCancelamento);
+      const k = `${s}|${m}`;
+      if (!mapa[k]) mapa[k] = { count:0, alunos:[] };
+      mapa[k].count++;
+      if (mapa[k].alunos.length < 5) mapa[k].alunos.push(a.nomeAluno);
+    });
+
+    const maxCount = Math.max(...Object.values(mapa).map(v=>v.count), 1);
+
+    const bubbleData = Object.entries(mapa).map(([k, v]) => {
+      const [ser, mot] = k.split('|');
+      const xi = series.indexOf(ser);
+      const yi = motivos.indexOf(mot);
+      return {
+        x: xi,
+        y: yi,
+        r: Math.max(6, Math.min(40, (v.count / maxCount) * 36 + 6)),
+        rawCount: v.count,
+        serie: ser,
+        motivo: mot,
+        alunos: v.alunos
+      };
+    }).filter(d => d.x >= 0 && d.y >= 0);
+
+    return criar('chart-cancel-bubble', {
+      type: 'bubble',
+      data: { datasets:[{
+        label: 'Cancelamentos',
+        data: bubbleData,
+        backgroundColor: bubbleData.map(d => {
+          const alpha = 0.3 + (d.rawCount / maxCount) * 0.5;
+          return `rgba(198,40,40,${alpha.toFixed(2)})`;
+        }),
+        borderColor: '#C62828',
+        borderWidth: 1
+      }]},
+      options: {
+        ...opcoesBase,
+        plugins: {
+          legend: { display:false },
+          tooltip: { callbacks: {
+            title: () => '',
+            label: ctx => {
+              const d = ctx.raw;
+              const linhas = [`📍 ${d.serie} × ${d.motivo}`, `Quantidade: ${d.rawCount}`];
+              if (d.alunos.length) linhas.push('Alunos: '+ d.alunos.join(', '));
+              return linhas;
+            }
+          }}
+        },
+        scales: {
+          x: {
+            min: -0.5, max: series.length - 0.5,
+            ticks: { callback: v => series[v] || '', font:{size:10}, color:'#1A2B45', maxRotation:30 },
+            grid: { color:'#E0E6EF' },
+            title: { display:true, text:'Série / Ano', font:{size:11} }
+          },
+          y: {
+            min: -0.5, max: motivos.length - 0.5,
+            ticks: { callback: v => motivos[Math.round(v)] || '', font:{size:10}, color:'#1A2B45', stepSize:1 },
+            grid: { color:'#E0E6EF' },
+            title: { display:true, text:'Categoria de Motivo', font:{size:11} }
+          }
+        }
+      }
+    });
+  }
+
+  /* ============================================================
+     CAPTAÇÃO
+  ============================================================ */
+
+  /* 1. Barras por série — verde */
+  function capSerie(dados) {
+    const porSerie = FilterEngine.agruparPor(dados, 'serieModulo');
+    const series   = Normalizer.ordenarSeries(Object.keys(porSerie));
+    const valores  = series.map(s => porSerie[s]);
+
+    const cores = series.map(s => {
+      const itens = dados.filter(a => a.serieModulo === s);
+      const svcCount = {};
+      itens.forEach(a => { svcCount[a.servico] = (svcCount[a.servico]||0)+1; });
+      const dominante = Object.entries(svcCount).sort((a,b)=>b[1]-a[1])[0]?.[0];
+      const base = COR_SERVICO[dominante] || '#2E7D32';
+      return base;
+    });
+
+    return criar('chart-cap-serie', {
+      type: 'bar',
+      data: { labels: series, datasets:[{
+        label:'Matrículas',
+        data: valores,
+        backgroundColor: cores.map(c => c + 'CC'),
+        borderColor: cores,
+        borderWidth:2,
+        borderRadius:6
+      }]},
+      options: {
+        ...opcoesBase,
+        plugins: {
+          ...opcoesBase.plugins,
+          legend: { display:false },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y} matrícula(s)` }}
+        },
+        scales: {
+          x: { ticks:{font:{size:10},color:'#6B7A99'}, grid:{display:false} },
+          y: { beginAtZero:true, ticks:{font:{size:11}}, grid:{color:'#E0E6EF'} }
+        }
+      }
+    });
+  }
+
+  /* 2. Linha mensal captação */
+  function capMensal(dados) {
+    const meses  = FilterEngine.gerarMeses(dados);
+    const labels = meses.map(FilterEngine.formatarMes);
+    const values = meses.map(m => {
+      const [ano, mes] = m.split('-');
+      return dados.filter(a => {
+        if (!a.dataEvento) return false;
+        const d = new Date(a.dataEvento);
+        return d.getFullYear() === +ano && (d.getMonth()+1) === +mes;
+      }).length;
+    });
+
+    return criar('chart-cap-mensal', {
+      type: 'line',
+      data: { labels, datasets:[{
+        label:'Matrículas',
+        data: values,
+        borderColor:'#2E7D32',
+        backgroundColor:'rgba(46,125,50,0.12)',
+        tension:0.4, fill:true, pointRadius:5, pointBackgroundColor:'#2E7D32'
+      }]},
+      options: {
+        ...opcoesBase,
+        scales: {
+          x: { ticks:{font:{size:10},color:'#6B7A99'}, grid:{display:false} },
+          y: { beginAtZero:true, ticks:{font:{size:11}}, grid:{color:'#E0E6EF'} }
+        }
+      }
+    });
+  }
+
+  /* 3. Barras horizontais por unidade */
+  function capUnidade(dados) {
+    const porUnidade = FilterEngine.agruparPor(dados, 'unidade');
+    const sorted = Object.entries(porUnidade).sort((a,b)=>b[1]-a[1]).slice(0,12);
+    const labels = sorted.map(([k])=>k||'Sem Unidade');
+    const values = sorted.map(([,v])=>v);
+
+    return criar('chart-cap-unidade', {
+      type:'bar',
+      data:{ labels, datasets:[{ label:'Matrículas', data:values, backgroundColor:'#43A04799', borderColor:'#2E7D32', borderWidth:2, borderRadius:6 }]},
+      options:{
+        ...opcoesBase,
+        indexAxis:'y',
+        plugins:{ ...opcoesBase.plugins, legend:{display:false} },
+        scales:{
+          x:{ beginAtZero:true, ticks:{font:{size:11}}, grid:{color:'#E0E6EF'} },
+          y:{ ticks:{font:{size:11},color:'#1A2B45'}, grid:{display:false} }
+        }
+      }
+    });
+  }
+
+  /* 4. Donut por turno */
+  function capTurno(dados) {
+    const porTurno = FilterEngine.agruparPor(dados, 'turno');
+    const labels = Object.keys(porTurno);
+    const values = labels.map(k => porTurno[k]);
+    const cores  = ['#F57F17','#283593','#00695C','#6A1B9A'];
+
+    return criar('chart-cap-turno', {
+      type:'doughnut',
+      data:{ labels, datasets:[{ data:values, backgroundColor:cores.slice(0,labels.length), borderWidth:2, borderColor:'#fff' }]},
+      options:{
+        ...opcoesBase,
+        cutout:'65%',
+        plugins:{
+          ...opcoesBase.plugins,
+          tooltip:{ callbacks:{ label:ctx=>` ${ctx.label}: ${ctx.raw}` }},
+          legend:{ position:'bottom', labels:{...opcoesBase.plugins.legend.labels} }
+        }
+      }
+    });
+  }
+
+  /* 5. Bubble captação — série vs mês */
+  function capBubble(dados) {
+    const series = Normalizer.ordenarSeries(FilterEngine.valoresUnicos(dados,'serieModulo'));
+    const meses  = FilterEngine.gerarMeses(dados).map(m => ({ chave:m, label:FilterEngine.formatarMes(m) }));
+
+    const mapa = {};
+    dados.forEach(a => {
+      if (!a.dataEvento) return;
+      const d   = new Date(a.dataEvento);
+      const m   = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      const s   = a.serieModulo;
+      const k   = `${s}|${m}`;
+      if (!mapa[k]) mapa[k] = { count:0, alunos:[] };
+      mapa[k].count++;
+      if (mapa[k].alunos.length < 5) mapa[k].alunos.push(a.nomeAluno);
+    });
+
+    const maxCount = Math.max(...Object.values(mapa).map(v=>v.count), 1);
+
+    const bubbleData = Object.entries(mapa).map(([k,v]) => {
+      const [ser, mes] = k.split('|');
+      const xi = meses.findIndex(m => m.chave === mes);
+      const yi = series.indexOf(ser);
+      return { x:xi, y:yi, r: Math.max(6, Math.min(38, (v.count/maxCount)*34+6)),
+               rawCount:v.count, serie:ser, mes:meses[xi]?.label, alunos:v.alunos };
+    }).filter(d => d.x >= 0 && d.y >= 0);
+
+    return criar('chart-cap-bubble', {
+      type:'bubble',
+      data:{ datasets:[{ label:'Matrículas', data:bubbleData, backgroundColor:'rgba(46,125,50,0.55)', borderColor:'#2E7D32', borderWidth:1 }]},
+      options:{
+        ...opcoesBase,
+        plugins:{ legend:{display:false},
+          tooltip:{ callbacks:{ title:()=>'',
+            label:ctx=>{ const d=ctx.raw; return [`📍 ${d.serie} × ${d.mes}`,`Qtd: ${d.rawCount}`, d.alunos.length?'Alunos: '+d.alunos.join(', '):''].filter(Boolean); }
+          }}
+        },
+        scales:{
+          x:{ min:-0.5, max:meses.length-0.5, ticks:{ callback:v=>meses[v]?.label||'', font:{size:10}, maxRotation:30 }, grid:{color:'#E0E6EF'}, title:{display:true,text:'Mês',font:{size:11}} },
+          y:{ min:-0.5, max:series.length-0.5, ticks:{ callback:v=>series[Math.round(v)]||'', font:{size:10}, stepSize:1 }, grid:{color:'#E0E6EF'}, title:{display:true,text:'Série / Ano',font:{size:11}} }
+        }
+      }
+    });
+  }
+
+  /* ============================================================
+     VISÃO GERAL
+  ============================================================ */
+
+  /* 1. Barras agrupadas + linha de saldo por mês */
+  function ovMensal(captados, cancelados) {
+    const meses  = FilterEngine.gerarMeses(captados, cancelados);
+    const labels = meses.map(FilterEngine.formatarMes);
+
+    const contar = (arr, m) => {
+      const [ano, mes] = m.split('-');
+      return arr.filter(a => {
+        if (!a.dataEvento) return false;
+        const d = new Date(a.dataEvento);
+        return d.getFullYear() === +ano && (d.getMonth()+1) === +mes;
+      }).length;
+    };
+
+    const vCap    = meses.map(m => contar(captados,   m));
+    const vCancel = meses.map(m => contar(cancelados, m));
+    const vSaldo  = vCap.map((c, i) => c - vCancel[i]);
+
+    return criar('chart-ov-mensal', {
+      type:'bar',
+      data:{ labels, datasets:[
+        { label:'Captados',     data:vCap,    backgroundColor:'rgba(46,125,50,0.75)',  borderColor:'#2E7D32', borderWidth:2, borderRadius:4, order:2 },
+        { label:'Cancelados',   data:vCancel, backgroundColor:'rgba(198,40,40,0.75)', borderColor:'#C62828', borderWidth:2, borderRadius:4, order:2 },
+        { label:'Saldo',        data:vSaldo,  type:'line', borderColor:'#C9A84C', backgroundColor:'transparent', borderWidth:3, pointRadius:5, tension:0.3, yAxisID:'y2', order:1 }
+      ]},
+      options:{
+        ...opcoesBase,
+        scales:{
+          x:{ ticks:{font:{size:10},color:'#6B7A99'}, grid:{display:false} },
+          y:{ beginAtZero:true, ticks:{font:{size:11}}, grid:{color:'#E0E6EF'}, title:{display:true,text:'Quantidade'} },
+          y2:{ position:'right', grid:{display:false}, ticks:{font:{size:11}}, title:{display:true,text:'Saldo'} }
+        }
+      }
+    });
+  }
+
+  /* 2. Barras agrupadas por série */
+  function ovSerie(captados, cancelados) {
+    const todasSeries = Normalizer.ordenarSeries([
+      ...new Set([...captados.map(a=>a.serieModulo), ...cancelados.map(a=>a.serieModulo)])
+    ]);
+
+    const vCap    = todasSeries.map(s => captados.filter(a=>a.serieModulo===s).length);
+    const vCancel = todasSeries.map(s => cancelados.filter(a=>a.serieModulo===s).length);
+
+    return criar('chart-ov-serie', {
+      type:'bar',
+      data:{ labels:todasSeries, datasets:[
+        { label:'Captados',   data:vCap,    backgroundColor:'rgba(46,125,50,0.75)',  borderColor:'#2E7D32', borderWidth:2, borderRadius:4 },
+        { label:'Cancelados', data:vCancel, backgroundColor:'rgba(198,40,40,0.75)', borderColor:'#C62828', borderWidth:2, borderRadius:4 }
+      ]},
+      options:{
+        ...opcoesBase,
+        scales:{
+          x:{ ticks:{font:{size:10},color:'#6B7A99'}, grid:{display:false} },
+          y:{ beginAtZero:true, ticks:{font:{size:11}}, grid:{color:'#E0E6EF'} }
+        }
+      }
+    });
+  }
+
+  /* 3. Balanço por unidade (barras horizontais divergentes) */
+  function ovUnidade(captados, cancelados) {
+    const unidades = [...new Set([
+      ...captados.map(a=>a.unidade), ...cancelados.map(a=>a.unidade)
+    ])].filter(Boolean).sort();
+
+    const saldos = unidades.map(u => {
+      const cap = captados.filter(a=>a.unidade===u).length;
+      const can = cancelados.filter(a=>a.unidade===u).length;
+      return { u, cap, can, saldo: cap - can };
+    }).sort((a,b)=>b.saldo-a.saldo);
+
+    const labels  = saldos.map(s => s.u || 'Sem Unidade');
+    const vCap    = saldos.map(s => s.cap);
+    const vCancel = saldos.map(s => -s.can);
+
+    return criar('chart-ov-unidade', {
+      type:'bar',
+      data:{ labels, datasets:[
+        { label:'Captados',   data:vCap,    backgroundColor:'rgba(46,125,50,0.75)',  borderColor:'#2E7D32', borderWidth:2, borderRadius:4 },
+        { label:'Cancelados', data:vCancel, backgroundColor:'rgba(198,40,40,0.75)', borderColor:'#C62828', borderWidth:2, borderRadius:4 }
+      ]},
+      options:{
+        ...opcoesBase,
+        indexAxis:'y',
+        plugins:{ ...opcoesBase.plugins, tooltip:{ callbacks:{ label:ctx=>` ${Math.abs(ctx.parsed.x)} ${ctx.dataset.label}` }}},
+        scales:{
+          x:{ ticks:{ callback:v=>Math.abs(v), font:{size:11} }, grid:{color:'#E0E6EF'} },
+          y:{ ticks:{font:{size:11},color:'#1A2B45'}, grid:{display:false} }
+        }
+      }
+    });
+  }
+
+  /* 4. Bubble combinado */
+  function ovBubble(captados, cancelados) {
+    const todasSeries = Normalizer.ordenarSeries([
+      ...new Set([...captados.map(a=>a.serieModulo), ...cancelados.map(a=>a.serieModulo)])
+    ]);
+    const meses = FilterEngine.gerarMeses(captados, cancelados).map(m=>({ chave:m, label:FilterEngine.formatarMes(m) }));
+
+    const calcBubble = (arr, tipo) => {
+      const mapa = {};
+      arr.forEach(a => {
+        if (!a.dataEvento) return;
+        const d = new Date(a.dataEvento);
+        const m = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        const s = a.serieModulo;
+        const k = `${s}|${m}`;
+        if (!mapa[k]) mapa[k] = 0;
+        mapa[k]++;
+      });
+      const max = Math.max(...Object.values(mapa), 1);
+      return Object.entries(mapa).map(([k,v]) => {
+        const [ser, mes] = k.split('|');
+        const xi = meses.findIndex(m=>m.chave===mes);
+        const yi = todasSeries.indexOf(ser);
+        return { x:xi, y:yi, r:Math.max(5,Math.min(35,(v/max)*30+5)), rawCount:v, serie:ser, mes:meses[xi]?.label, tipo };
+      }).filter(d=>d.x>=0&&d.y>=0);
+    };
+
+    return criar('chart-ov-bubble', {
+      type:'bubble',
+      data:{ datasets:[
+        { label:'Captados',   data:calcBubble(captados,'CAP'),    backgroundColor:'rgba(46,125,50,0.55)',  borderColor:'#2E7D32', borderWidth:1 },
+        { label:'Cancelados', data:calcBubble(cancelados,'CANCEL'), backgroundColor:'rgba(198,40,40,0.55)', borderColor:'#C62828', borderWidth:1 }
+      ]},
+      options:{
+        ...opcoesBase,
+        plugins:{ ...opcoesBase.plugins, tooltip:{ callbacks:{ title:()=>'', label:ctx=>{ const d=ctx.raw; return [`${d.tipo==='CAP'?'🟢 Captado':'🔴 Cancelado'}`,`${d.serie} × ${d.mes}`,`Qtd: ${d.rawCount}`]; }}}},
+        scales:{
+          x:{ min:-0.5, max:meses.length-0.5, ticks:{ callback:v=>meses[v]?.label||'', font:{size:10}, maxRotation:30 }, grid:{color:'#E0E6EF'}, title:{display:true,text:'Mês'} },
+          y:{ min:-0.5, max:todasSeries.length-0.5, ticks:{ callback:v=>todasSeries[Math.round(v)]||'', font:{size:10}, stepSize:1 }, grid:{color:'#E0E6EF'}, title:{display:true,text:'Série'} }
+        }
+      }
+    });
+  }
+
+  /* 5. Área acumulada */
+  function ovArea(captados, cancelados) {
+    const meses  = FilterEngine.gerarMeses(captados, cancelados);
+    const labels = meses.map(FilterEngine.formatarMes);
+
+    const contar = (arr, m) => {
+      const [ano, mes] = m.split('-');
+      return arr.filter(a => {
+        if (!a.dataEvento) return false;
+        const d = new Date(a.dataEvento);
+        return d.getFullYear() === +ano && (d.getMonth()+1) === +mes;
+      }).length;
+    };
+
+    let acumCap = 0, acumCancel = 0;
+    const vCapAcum    = meses.map(m => { acumCap    += contar(captados,m);   return acumCap; });
+    const vCancelAcum = meses.map(m => { acumCancel += contar(cancelados,m); return acumCancel; });
+    const vSaldo      = vCapAcum.map((c,i) => c - vCancelAcum[i]);
+
+    return criar('chart-ov-area', {
+      type:'line',
+      data:{ labels, datasets:[
+        { label:'Captados Acum.',   data:vCapAcum,    borderColor:'#2E7D32', backgroundColor:'rgba(46,125,50,0.15)',  fill:true, tension:0.4 },
+        { label:'Cancelados Acum.', data:vCancelAcum, borderColor:'#C62828', backgroundColor:'rgba(198,40,40,0.15)', fill:true, tension:0.4 },
+        { label:'Saldo Acum.',      data:vSaldo,      borderColor:'#C9A84C', backgroundColor:'transparent',          fill:false, tension:0.4, borderWidth:3, borderDash:[5,3] }
+      ]},
+      options:{
+        ...opcoesBase,
+        scales:{
+          x:{ ticks:{font:{size:10},color:'#6B7A99'}, grid:{display:false} },
+          y:{ beginAtZero:true, ticks:{font:{size:11}}, grid:{color:'#E0E6EF'} }
+        }
+      }
+    });
+  }
+
+  /* ============================================================
+     NOVOS GRÁFICOS V2 — CANCELAMENTOS
+  ============================================================ */
+
+  /* 7a. Motivos Detalhados por Categoria (substitui o genérico, mais colorido) */
+  function cancelMotivosDetalhado(dados) {
+    const categorias = {};
+    const exemplos   = {};
+    dados.forEach(a => {
+      const cat = Normalizer.categorizarMotivo(a.motivoCancelamento);
+      categorias[cat] = (categorias[cat] || 0) + 1;
+      if (!exemplos[cat]) exemplos[cat] = [];
+      if (a.motivoCancelamento && exemplos[cat].length < 3)
+        exemplos[cat].push(a.motivoCancelamento.substring(0, 70));
+    });
+
+    const CORES_CAT = {
+      'Escola Pública':    '#1565C0',
+      'Escola Particular': '#7B1FA2',
+      'Financeiro':        '#E65100',
+      'Mudança/Cidade':    '#2E7D32',
+      'Insatisfação':      '#C62828',
+      'Distância':         '#F57F17',
+      'Saúde':             '#00838F',
+      'Familiar/Pessoal':  '#558B2F',
+      'Não Efetivou':      '#AD1457',
+      'Outros':            '#546E7A'
+    };
+
+    const sorted = Object.entries(categorias).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    const labels = sorted.map(([k]) => k);
+    const values = sorted.map(([, v]) => v);
+    const cores  = labels.map(l => CORES_CAT[l] || '#546E7A');
+
+    return criar('chart-cancel-motivos-det', {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Cancelamentos',
+          data: values,
+          backgroundColor: cores.map(c => c + 'CC'),
+          borderColor: cores,
+          borderWidth: 2,
+          borderRadius: 8
+        }]
+      },
+      options: {
+        ...opcoesBase,
+        indexAxis: 'y',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.parsed.x} casos (${dados.length > 0 ? Math.round(ctx.parsed.x / dados.length * 100) : 0}%)`,
+              afterLabel: ctx => {
+                const exs = exemplos[labels[ctx.dataIndex]] || [];
+                return exs.length ? '\nExemplos:\n' + exs.map(e => '• ' + e).join('\n') : '';
+              }
+            }
+          }
+        },
+        scales: {
+          x: { beginAtZero: true, ticks: { font: { size: 11 } }, grid: { color: '#E0E6EF' } },
+          y: { ticks: { font: { size: 11 }, color: '#1A2B45' }, grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  /* 7b. Frases Frequentes — palavras/expressões mais repetidas nos motivos */
+  function cancelFrasesFrequentes(dados) {
+    // Extrai palavras significativas (≥ 4 letras) dos motivos
+    const STOPWORDS = new Set(['para','pelo','pela','como','mais','este','esta','esta','essa',
+      'esse','isso','aqui','onde','quando','depois','antes','entre','sobre','muito','alguns',
+      'aluna','aluno','serie','ano','turma','neste','nossa','nosso','foram','seja','sendo']);
+
+    const freq = {};
+    dados.forEach(a => {
+      if (!a.motivoCancelamento) return;
+      const palavras = Normalizer.removerAcentos(a.motivoCancelamento.toLowerCase())
+        .replace(/[^a-z\s]/g, ' ')
+        .split(/\s+/)
+        .filter(p => p.length >= 4 && !STOPWORDS.has(p));
+      palavras.forEach(p => { freq[p] = (freq[p] || 0) + 1; });
+    });
+
+    const top = Object.entries(freq)
+      .filter(([, v]) => v >= 2)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 15);
+
+    if (top.length === 0) {
+      destruir('chart-cancel-frases');
+      return null;
+    }
+
+    const labels = top.map(([k]) => k);
+    const values = top.map(([, v]) => v);
+    // Gradiente de cor pela frequência
+    const maxV = values[0] || 1;
+    const cores = values.map(v => {
+      const t = v / maxV;
+      const r = Math.round(198 + (0 - 198) * t);
+      const g = Math.round(40  + (51 - 40) * t);
+      const b = Math.round(40  + (102 - 40) * t);
+      return `rgba(${r},${g},${b},0.85)`;
+    });
+
+    return criar('chart-cancel-frases', {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Frequência',
+          data: values,
+          backgroundColor: cores,
+          borderColor: cores.map(c => c.replace('0.85', '1')),
+          borderWidth: 1,
+          borderRadius: 6
+        }]
+      },
+      options: {
+        ...opcoesBase,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ` Aparece ${ctx.parsed.y}× nos motivos` } }
+        },
+        scales: {
+          x: { ticks: { font: { size: 10 }, color: '#1A2B45', maxRotation: 35 }, grid: { display: false } },
+          y: { beginAtZero: true, ticks: { font: { size: 11 } }, grid: { color: '#E0E6EF' } }
+        }
+      }
+    });
+  }
+
+  /* 8. Escolas de Destino — barras horizontais rankeadas */
+  function cancelEscolasDestino(dados, fonte = 'ambos') {
+    const contagem = {};
+    const alunoPorEscola = {};
+
+    dados.forEach(a => {
+      let escola = null;
+
+      if (fonte === 'coluna' || fonte === 'ambos') {
+        // Usa o campo escolaDestino se tiver valor
+        if (a.escolaDestino) escola = a.escolaDestino;
+      }
+      if (!escola && (fonte === 'motivo' || fonte === 'ambos')) {
+        // Tenta extrair do motivo em tempo real (para garantir)
+        escola = Normalizer.normalizarEscolaDestino('', a.motivoCancelamento || '');
+      }
+
+      if (!escola || escola.trim().length < 2) return;
+      const k = escola.trim();
+      contagem[k] = (contagem[k] || 0) + 1;
+      if (!alunoPorEscola[k]) alunoPorEscola[k] = [];
+      if (alunoPorEscola[k].length < 4) alunoPorEscola[k].push(a.nomeAluno);
+    });
+
+    const totalIdentificados = Object.values(contagem).reduce((s, v) => s + v, 0);
+    const semInfo = dados.length - totalIdentificados;
+
+    // Atualiza badge de info
+    const infoEl = document.getElementById('escolas-destino-info');
+    if (infoEl) {
+      infoEl.innerHTML = totalIdentificados > 0
+        ? `<strong>${totalIdentificados}</strong> identificados<br><span style="color:#aaa">${semInfo} sem info</span>`
+        : 'Nenhuma escola<br>identificada';
+    }
+    const semInfoEl = document.getElementById('escolas-sem-info');
+    if (semInfoEl) {
+      if (semInfo > 0) {
+        semInfoEl.textContent = `⚠️ ${semInfo} aluno(s) sem escola de destino identificada`;
+        semInfoEl.style.display = 'block';
+      } else {
+        semInfoEl.style.display = 'none';
+      }
+    }
+
+    if (Object.keys(contagem).length === 0) {
+      destruir('chart-cancel-escolas');
+      const canvas = document.getElementById('chart-cancel-escolas');
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = '14px Inter, sans-serif';
+        ctx.fillStyle = '#6B7A99';
+        ctx.textAlign = 'center';
+        ctx.fillText('Nenhuma escola de destino identificada nos dados.', canvas.width / 2, canvas.height / 2 - 10);
+        ctx.font = '12px Inter, sans-serif';
+        ctx.fillText('Use uma coluna "Escola de Destino" ou mencione escolas no motivo.', canvas.width / 2, canvas.height / 2 + 16);
+      }
+      return null;
+    }
+
+    const sorted = Object.entries(contagem).sort((a, b) => b[1] - a[1]).slice(0, 15);
+    const labels = sorted.map(([k]) => k);
+    const values = sorted.map(([, v]) => v);
+
+    // Paleta dinâmica com índice de posição
+    const PALETA = ['#C62828','#AD1457','#6A1B9A','#283593','#1565C0','#00695C',
+                    '#2E7D32','#F57F17','#E65100','#4E342E','#37474F','#455A64',
+                    '#546E7A','#78909C','#90A4AE'];
+
+    return criar('chart-cancel-escolas', {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Alunos',
+          data: values,
+          backgroundColor: labels.map((_, i) => PALETA[i % PALETA.length] + 'CC'),
+          borderColor:     labels.map((_, i) => PALETA[i % PALETA.length]),
+          borderWidth: 2,
+          borderRadius: 6
+        }]
+      },
+      options: {
+        ...opcoesBase,
+        indexAxis: 'y',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.parsed.x} aluno(s)`,
+              afterLabel: ctx => {
+                const escola = labels[ctx.dataIndex];
+                const lista  = alunoPorEscola[escola] || [];
+                return lista.length ? 'Alunos: ' + lista.join(', ') + (contagem[escola] > lista.length ? '...' : '') : '';
+              }
+            }
+          }
+        },
+        scales: {
+          x: { beginAtZero: true, ticks: { font: { size: 11 } }, grid: { color: '#E0E6EF' } },
+          y: { ticks: { font: { size: 11 }, color: '#1A2B45' }, grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  /* 9. Bubble Série × Escola de Destino */
+  function cancelBubbleEscolas(dados) {
+    const series  = Normalizer.ordenarSeries(FilterEngine.valoresUnicos(dados, 'serieModulo'));
+
+    // Coletar escolas (campo dedicado ou extraído)
+    const escolasSet = new Set();
+    dados.forEach(a => {
+      const e = a.escolaDestino || Normalizer.normalizarEscolaDestino('', a.motivoCancelamento || '');
+      if (e) escolasSet.add(e);
+    });
+    const escolas = [...escolasSet].sort();
+
+    if (escolas.length === 0 || series.length === 0) {
+      destruir('chart-cancel-bubble-escolas');
+      return null;
+    }
+
+    const mapa = {};
+    dados.forEach(a => {
+      const s = a.serieModulo;
+      const e = a.escolaDestino || Normalizer.normalizarEscolaDestino('', a.motivoCancelamento || '');
+      if (!s || !e) return;
+      const k = `${s}|${e}`;
+      if (!mapa[k]) mapa[k] = { count: 0, alunos: [] };
+      mapa[k].count++;
+      if (mapa[k].alunos.length < 5) mapa[k].alunos.push(a.nomeAluno);
+    });
+
+    const maxCount = Math.max(...Object.values(mapa).map(v => v.count), 1);
+
+    const bubbleData = Object.entries(mapa).map(([k, v]) => {
+      const [ser, esc] = k.split('|');
+      const xi = series.indexOf(ser);
+      const yi = escolas.indexOf(esc);
+      return {
+        x: xi, y: yi,
+        r: Math.max(6, Math.min(38, (v.count / maxCount) * 34 + 6)),
+        rawCount: v.count, serie: ser, escola: esc, alunos: v.alunos
+      };
+    }).filter(d => d.x >= 0 && d.y >= 0);
+
+    return criar('chart-cancel-bubble-escolas', {
+      type: 'bubble',
+      data: {
+        datasets: [{
+          label: 'Alunos',
+          data: bubbleData,
+          backgroundColor: bubbleData.map(d => {
+            const alpha = 0.3 + (d.rawCount / maxCount) * 0.55;
+            return `rgba(198,40,40,${alpha.toFixed(2)})`;
+          }),
+          borderColor: '#C62828',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        ...opcoesBase,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: () => '',
+              label: ctx => {
+                const d = ctx.raw;
+                const linhas = [
+                  `🏫 ${d.escola}`,
+                  `📚 ${d.serie}`,
+                  `Quantidade: ${d.rawCount}`,
+                ];
+                if (d.alunos.length) linhas.push('Alunos: ' + d.alunos.join(', '));
+                return linhas;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            min: -0.5, max: series.length - 0.5,
+            ticks: { callback: v => series[v] || '', font: { size: 10 }, maxRotation: 30 },
+            grid: { color: '#E0E6EF' },
+            title: { display: true, text: 'Série / Ano', font: { size: 11 } }
+          },
+          y: {
+            min: -0.5, max: escolas.length - 0.5,
+            ticks: { callback: v => escolas[Math.round(v)] || '', font: { size: 10 }, stepSize: 1 },
+            grid: { color: '#E0E6EF' },
+            title: { display: true, text: 'Escola de Destino', font: { size: 11 } }
+          }
+        }
+      }
+    });
+  }
+
+  return {
+    cancelSerie, cancelMensal, cancelSituacao, cancelMotivos, cancelBubble,
+    cancelMotivosDetalhado, cancelFrasesFrequentes, cancelEscolasDestino, cancelBubbleEscolas,
+    capSerie, capMensal, capUnidade, capTurno, capBubble,
+    ovMensal, ovSerie, ovUnidade, ovBubble, ovArea,
+    destruir
+  };
+})();
+
+
+/* ============================================================
+   MÓDULO: UIManager
+   Gerencia navegação SPA, multiselects, tabelas, toasts e estados.
+============================================================ */
+const UIManager = (() => {
+
+  /* --------- Estado dos filtros e tabelas --------- */
+  const _filtrosCancel = {};
+  const _filtrosCap    = {};
+  const _filtrosOv     = {};
+
+  const _tableState = {
+    cancel: { dados:[], pagina:1, perPagina:20, sortCol:null, sortDir:'asc', busca:'' },
+    cap:    { dados:[], pagina:1, perPagina:20, sortCol:null, sortDir:'asc', busca:'' }
+  };
+
+  /* --------- Toast --------- */
+  function toast(msg, tipo='info') {
+    const icons = {
+      success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      error:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+      warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      info:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+    };
+    const el = document.createElement('div');
+    el.className = `toast ${tipo}`;
+    el.innerHTML = `${icons[tipo]||icons.info}<span>${msg}</span>`;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  }
+
+  /* --------- Spinner --------- */
+  function showSpinner(txt='Processando...') {
+    document.getElementById('spinner-text').textContent = txt;
+    document.getElementById('spinner').classList.add('open');
+  }
+  function hideSpinner() {
+    document.getElementById('spinner').classList.remove('open');
+  }
+
+  /* --------- Navegação SPA --------- */
+  function navegarPara(pagina) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+
+    const pageEl = document.getElementById(`page-${pagina}`);
+    if (pageEl) pageEl.classList.add('active');
+
+    const tabEl = document.querySelector(`.nav-tab[data-page="${pagina}"]`);
+    if (tabEl) tabEl.classList.add('active');
+
+    // Atualiza gráficos ao entrar na Visão Geral
+    if (pagina === 'visao-geral') {
+      atualizarPagina('visao-geral');
+    }
+  }
+
+  /* --------- Multiselect --------- */
+  function criarMultiselect(containerId, opcoes, placeholder='Todos') {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+
+    let selecionados = new Set();
+
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'multiselect-trigger';
+    trigger.textContent = placeholder;
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'multiselect-dropdown';
+
+    // Opção "Todos"
+    const itemTodos = document.createElement('div');
+    itemTodos.className = 'multiselect-item';
+    itemTodos.innerHTML = `<input type="checkbox" checked /> Todos`;
+    dropdown.appendChild(itemTodos);
+
+    opcoes.forEach(op => {
+      const item = document.createElement('div');
+      item.className = 'multiselect-item';
+      item.innerHTML = `<input type="checkbox" value="${op}" /> ${op}`;
+      dropdown.appendChild(item);
+    });
+
+    const atualizar = () => {
+      const sel = selecionados.size;
+      if (sel === 0) {
+        trigger.innerHTML = placeholder;
+      } else {
+        trigger.innerHTML = `${sel} selecionado${sel>1?'s':''} <span class="ms-badge">${sel}</span>`;
+      }
+    };
+
+    // Toggle dropdown
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('open');
+      trigger.classList.toggle('open');
+    });
+
+    // Checkboxes
+    dropdown.querySelectorAll('input[type=checkbox]').forEach((cb, idx) => {
+      cb.addEventListener('change', () => {
+        if (idx === 0) {
+          // "Todos" clicado
+          selecionados.clear();
+          dropdown.querySelectorAll('input[type=checkbox]').forEach((c,i) => {
+            if (i > 0) c.checked = false;
+          });
+          cb.checked = true;
+        } else {
+          if (cb.checked) {
+            selecionados.add(cb.value);
+            dropdown.querySelector('input').checked = false;
+          } else {
+            selecionados.delete(cb.value);
+            if (selecionados.size === 0) dropdown.querySelector('input').checked = true;
+          }
+        }
+        atualizar();
+        container.dispatchEvent(new Event('change'));
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!container.contains(e.target)) {
+        dropdown.classList.remove('open');
+        trigger.classList.remove('open');
+      }
+    });
+
+    container.appendChild(trigger);
+    container.appendChild(dropdown);
+
+    // API
+    container.getSelected = () => [...selecionados];
+    container.reset = () => {
+      selecionados.clear();
+      dropdown.querySelectorAll('input[type=checkbox]').forEach((c,i) => {
+        c.checked = (i === 0);
+      });
+      atualizar();
+    };
+  }
+
+  /* --------- Atualizar status de importação --------- */
+  function atualizarStatusImportacao() {
+    // Cancelados
+    const metaC = DataStore.getCanceladosMeta();
+    const dotC  = document.getElementById('cancel-status-dot');
+    const txtC  = document.getElementById('cancel-status-text');
+    if (metaC && DataStore.temCancelados()) {
+      dotC.className = 'status-dot loaded';
+      txtC.innerHTML = `<strong>${metaC.totalRegistros} registros</strong> carregados — última importação: ${metaC.importadoEm}`;
+    } else {
+      dotC.className = 'status-dot empty';
+      txtC.textContent = 'Nenhuma planilha importada';
+    }
+
+    // Captados
+    const metaP = DataStore.getCaptadosMeta();
+    const dotP  = document.getElementById('cap-status-dot');
+    const txtP  = document.getElementById('cap-status-text');
+    if (metaP && DataStore.temCaptados()) {
+      dotP.className = 'status-dot loaded';
+      txtP.innerHTML = `<strong>${metaP.totalRegistros} registros</strong> carregados — última importação: ${metaP.importadoEm}`;
+    } else {
+      dotP.className = 'status-dot empty';
+      txtP.textContent = 'Nenhuma planilha importada';
+    }
+
+    // Header info
+    const totalGeral = DataStore.getCancelados().length + DataStore.getCaptados().length;
+    document.getElementById('header-info').textContent =
+      totalGeral > 0 ? `${totalGeral} registros totais` : 'Nenhum dado carregado';
+  }
+
+  /* --------- Atualizar página --------- */
+  function atualizarPagina(pagina) {
+    if (pagina === 'cancelamentos') atualizarCancelamentos();
+    else if (pagina === 'captacao') atualizarCaptacao();
+    else if (pagina === 'visao-geral') atualizarVisaoGeral();
+  }
+
+  /* ============================================================
+     CANCELAMENTOS
+  ============================================================ */
+  function atualizarCancelamentos() {
+    const temDados = DataStore.temCancelados();
+    document.getElementById('cancel-empty').style.display     = temDados ? 'none'  : '';
+    document.getElementById('cancel-dashboard').style.display = temDados ? 'block' : 'none';
+    if (!temDados) return;
+
+    const dadosBrutos = DataStore.getCancelados();
+
+    // Popular multiselects (apenas na 1ª vez ou quando dados mudam)
+    criarMultiselect('ms-cancel-unidade', FilterEngine.valoresUnicos(dadosBrutos,'unidade').filter(Boolean));
+    criarMultiselect('ms-cancel-servico', ['Educação Infantil','Ensino Fundamental','Ensino Médio']);
+    criarMultiselect('ms-cancel-serie',   Normalizer.ordenarSeries(FilterEngine.valoresUnicos(dadosBrutos,'serieModulo')));
+    criarMultiselect('ms-cancel-situacao',['RESERVADO','MATRICULADO']);
+
+    // Listeners de filtros
+    const aoFiltrar = () => renderizarDashboardCancel(dadosBrutos);
+    ['cancel-f-data-ini','cancel-f-data-fim','cancel-f-aluno'].forEach(id =>
+      document.getElementById(id)?.addEventListener('input', aoFiltrar)
+    );
+    ['ms-cancel-unidade','ms-cancel-servico','ms-cancel-serie','ms-cancel-situacao'].forEach(id =>
+      document.getElementById(id)?.addEventListener('change', aoFiltrar)
+    );
+
+    renderizarDashboardCancel(dadosBrutos);
+  }
+
+  function obterFiltrosCancel() {
+    return {
+      dataIni:   document.getElementById('cancel-f-data-ini')?.value || '',
+      dataFim:   document.getElementById('cancel-f-data-fim')?.value || '',
+      unidades:  document.getElementById('ms-cancel-unidade')?.getSelected() || [],
+      servicos:  document.getElementById('ms-cancel-servico')?.getSelected() || [],
+      series:    document.getElementById('ms-cancel-serie')?.getSelected()   || [],
+      situacoes: document.getElementById('ms-cancel-situacao')?.getSelected()|| [],
+      nomeAluno: document.getElementById('cancel-f-aluno')?.value || ''
+    };
+  }
+
+  function renderizarDashboardCancel(dadosBrutos) {
+    const filtros = obterFiltrosCancel();
+    const dados   = FilterEngine.filtrar(dadosBrutos, filtros);
+
+    // KPIs
+    const total       = dados.length;
+    const matriculados= dados.filter(a=>a.situacaoAnterior==='MATRICULADO').length;
+    const reservados  = dados.filter(a=>a.situacaoAnterior==='RESERVADO').length;
+    const pctM  = total > 0 ? Math.round(matriculados/total*100) : 0;
+    const pctR  = total > 0 ? Math.round(reservados/total*100)   : 0;
+
+    document.getElementById('kpi-cancel-total').textContent = total;
+    document.getElementById('kpi-cancel-sub').textContent   = `de ${dadosBrutos.length} no total`;
+    document.getElementById('kpi-cancel-split').textContent = `${pctM}% / ${pctR}%`;
+
+    // Mês com mais cancelamentos
+    const porMes   = FilterEngine.agruparPorMes(dados);
+    const topMes   = Object.entries(porMes).sort((a,b)=>b[1]-a[1])[0];
+    if (topMes) {
+      document.getElementById('kpi-cancel-mes').textContent       = FilterEngine.formatarMes(topMes[0]);
+      document.getElementById('kpi-cancel-mes-count').textContent = `${topMes[1]} cancelamentos`;
+    }
+
+    // Série com mais cancelamentos
+    const porSerie = FilterEngine.agruparPor(dados, 'serieModulo');
+    const topSerie = Object.entries(porSerie).sort((a,b)=>b[1]-a[1])[0];
+    if (topSerie) {
+      document.getElementById('kpi-cancel-serie').textContent       = topSerie[0];
+      document.getElementById('kpi-cancel-serie-count').textContent = `${topSerie[1]} cancelamentos`;
+    }
+
+    // Gráficos
+    ChartBuilder.cancelSerie(dados, (serie) => {
+      document.getElementById('cancel-table-search').value = serie;
+      _tableState.cancel.busca = serie;
+      _tableState.cancel.pagina = 1;
+      renderizarTabelaCancel(dados);
+    });
+    ChartBuilder.cancelMensal(dados);
+    ChartBuilder.cancelSituacao(dados);
+    ChartBuilder.cancelMotivos(dados);
+    ChartBuilder.cancelBubble(dados);
+
+    // NOVOS GRÁFICOS V2
+    ChartBuilder.cancelMotivosDetalhado(dados);
+    ChartBuilder.cancelFrasesFrequentes(dados);
+    const fonteEscolas = document.getElementById('select-escolas-fonte')?.value || 'ambos';
+    ChartBuilder.cancelEscolasDestino(dados, fonteEscolas);
+    ChartBuilder.cancelBubbleEscolas(dados);
+
+    // Tabela
+    _tableState.cancel.dados  = dados;
+    _tableState.cancel.pagina = 1;
+    renderizarTabelaCancel(dados);
+  }
+
+  /* --------- Tabela cancelamentos --------- */
+  function renderizarTabelaCancel(dadosFiltrados) {
+    const st = _tableState.cancel;
+    let dados = [...dadosFiltrados];
+
+    // Busca inline
+    if (st.busca) {
+      const q = Normalizer.removerAcentos(st.busca.toLowerCase());
+      dados = dados.filter(a =>
+        Normalizer.removerAcentos((a.nomeAluno||'').toLowerCase()).includes(q) ||
+        (a.registro||'').toLowerCase().includes(q) ||
+        Normalizer.removerAcentos((a.serieModulo||'').toLowerCase()).includes(q)
+      );
+    }
+
+    // Ordenação
+    if (st.sortCol) {
+      dados.sort((a,b) => {
+        let va = a[st.sortCol], vb = b[st.sortCol];
+        if (va instanceof Date) va = va.getTime();
+        if (vb instanceof Date) vb = vb.getTime();
+        va = va || ''; vb = vb || '';
+        if (va < vb) return st.sortDir === 'asc' ? -1 : 1;
+        if (va > vb) return st.sortDir === 'asc' ?  1 : -1;
+        return 0;
+      });
+    }
+
+    // Paginação
+    const total   = dados.length;
+    const inicio  = (st.pagina - 1) * st.perPagina;
+    const fim     = inicio + st.perPagina;
+    const pagina  = dados.slice(inicio, fim);
+
+    // Render tbody
+    const tbody = document.getElementById('cancel-tbody');
+    tbody.innerHTML = pagina.map(a => `
+      <tr>
+        <td>${a.registro||'-'}</td>
+        <td><strong>${a.nomeAluno||'-'}</strong></td>
+        <td>${a.serieModulo||'-'}</td>
+        <td><span class="badge ${badgeServico(a.servico)}">${a.servico||'-'}</span></td>
+        <td><span class="badge ${badgeTurno(a.turno)}">${a.turno||'-'}</span></td>
+        <td>${formatarDataExib(a.dataEvento)}</td>
+        <td><span class="badge ${badgeSituacao(a.situacaoAnterior)}">${a.situacaoAnterior||'-'}</span></td>
+        <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${a.motivoCancelamento||''}">${a.motivoCancelamento||'-'}</td>
+        <td style="white-space:nowrap;">${
+          a.escolaDestino
+            ? `<span style="display:inline-flex;align-items:center;gap:5px;background:#FFF3CD;color:#6D4C41;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">🏫 ${a.escolaDestino}</span>`
+            : '<span style="color:#aaa;font-size:12px;">—</span>'
+        }</td>
+      </tr>
+    `).join('') || '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-muted);">Nenhum registro encontrado</td></tr>';
+
+    // Paginação
+    renderizarPaginacao('cancel-pagination', st, total, () => renderizarTabelaCancel(dadosFiltrados));
+    renderizarContadorTabela('cancel-pagination', inicio+1, Math.min(fim,total), total);
+  }
+
+  /* ============================================================
+     CAPTAÇÃO
+  ============================================================ */
+  function atualizarCaptacao() {
+    const temDados = DataStore.temCaptados();
+    document.getElementById('cap-empty').style.display     = temDados ? 'none'  : '';
+    document.getElementById('cap-dashboard').style.display = temDados ? 'block' : 'none';
+    if (!temDados) return;
+
+    const dadosBrutos = DataStore.getCaptados();
+
+    criarMultiselect('ms-cap-unidade', FilterEngine.valoresUnicos(dadosBrutos,'unidade').filter(Boolean));
+    criarMultiselect('ms-cap-servico', ['Educação Infantil','Ensino Fundamental','Ensino Médio']);
+    criarMultiselect('ms-cap-serie',   Normalizer.ordenarSeries(FilterEngine.valoresUnicos(dadosBrutos,'serieModulo')));
+    criarMultiselect('ms-cap-turno',   FilterEngine.valoresUnicos(dadosBrutos,'turno').filter(Boolean));
+
+    const aoFiltrar = () => renderizarDashboardCap(dadosBrutos);
+    ['cap-f-data-ini','cap-f-data-fim','cap-f-aluno'].forEach(id =>
+      document.getElementById(id)?.addEventListener('input', aoFiltrar)
+    );
+    ['ms-cap-unidade','ms-cap-servico','ms-cap-serie','ms-cap-turno'].forEach(id =>
+      document.getElementById(id)?.addEventListener('change', aoFiltrar)
+    );
+
+    renderizarDashboardCap(dadosBrutos);
+  }
+
+  function obterFiltrosCap() {
+    return {
+      dataIni:  document.getElementById('cap-f-data-ini')?.value || '',
+      dataFim:  document.getElementById('cap-f-data-fim')?.value || '',
+      unidades: document.getElementById('ms-cap-unidade')?.getSelected() || [],
+      servicos: document.getElementById('ms-cap-servico')?.getSelected() || [],
+      series:   document.getElementById('ms-cap-serie')?.getSelected()   || [],
+      turnos:   document.getElementById('ms-cap-turno')?.getSelected()   || [],
+      nomeAluno:document.getElementById('cap-f-aluno')?.value || ''
+    };
+  }
+
+  function renderizarDashboardCap(dadosBrutos) {
+    const filtros = obterFiltrosCap();
+    const dados   = FilterEngine.filtrar(dadosBrutos, filtros);
+
+    // KPIs
+    const anoAtual = new Date().getFullYear();
+    const novos    = dados.filter(a => a.anoEntrada === anoAtual).length;
+
+    document.getElementById('kpi-cap-total').textContent  = dados.length;
+    document.getElementById('kpi-cap-novos').textContent  = novos;
+
+    const porMes   = FilterEngine.agruparPorMes(dados);
+    const topMes   = Object.entries(porMes).sort((a,b)=>b[1]-a[1])[0];
+    if (topMes) {
+      document.getElementById('kpi-cap-mes').textContent       = FilterEngine.formatarMes(topMes[0]);
+      document.getElementById('kpi-cap-mes-count').textContent = `${topMes[1]} matrículas`;
+    }
+
+    const porSerie = FilterEngine.agruparPor(dados, 'serieModulo');
+    const topSerie = Object.entries(porSerie).sort((a,b)=>b[1]-a[1])[0];
+    if (topSerie) {
+      document.getElementById('kpi-cap-serie').textContent       = topSerie[0];
+      document.getElementById('kpi-cap-serie-count').textContent = `${topSerie[1]} matrículas`;
+    }
+
+    // Gráficos
+    ChartBuilder.capSerie(dados);
+    ChartBuilder.capMensal(dados);
+    ChartBuilder.capUnidade(dados);
+    ChartBuilder.capTurno(dados);
+    ChartBuilder.capBubble(dados);
+
+    // Tabela
+    _tableState.cap.dados  = dados;
+    _tableState.cap.pagina = 1;
+    renderizarTabelaCap(dados);
+  }
+
+  function renderizarTabelaCap(dadosFiltrados) {
+    const st = _tableState.cap;
+    let dados = [...dadosFiltrados];
+
+    if (st.busca) {
+      const q = Normalizer.removerAcentos(st.busca.toLowerCase());
+      dados = dados.filter(a =>
+        Normalizer.removerAcentos((a.nomeAluno||'').toLowerCase()).includes(q) ||
+        (a.registro||'').toLowerCase().includes(q)
+      );
+    }
+
+    if (st.sortCol) {
+      dados.sort((a,b) => {
+        let va = a[st.sortCol], vb = b[st.sortCol];
+        if (va instanceof Date) va = va.getTime();
+        if (vb instanceof Date) vb = vb.getTime();
+        va = va||''; vb = vb||'';
+        if (va < vb) return st.sortDir==='asc'?-1:1;
+        if (va > vb) return st.sortDir==='asc'?1:-1;
+        return 0;
+      });
+    }
+
+    const total  = dados.length;
+    const inicio = (st.pagina-1)*st.perPagina;
+    const fim    = inicio+st.perPagina;
+    const pagina = dados.slice(inicio, fim);
+
+    const tbody = document.getElementById('cap-tbody');
+    tbody.innerHTML = pagina.map(a => `
+      <tr>
+        <td>${a.registro||'-'}</td>
+        <td><strong>${a.nomeAluno||'-'}</strong></td>
+        <td>${a.unidade||'-'}</td>
+        <td>${a.serieModulo||'-'}</td>
+        <td><span class="badge ${badgeServico(a.servico)}">${a.servico||'-'}</span></td>
+        <td><span class="badge ${badgeTurno(a.turno)}">${a.turno||'-'}</span></td>
+        <td>${a.turma||'-'}</td>
+        <td>${formatarDataExib(a.dataEvento)}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted);">Nenhum registro encontrado</td></tr>';
+
+    renderizarPaginacao('cap-pagination', st, total, () => renderizarTabelaCap(dadosFiltrados));
+    renderizarContadorTabela('cap-pagination', inicio+1, Math.min(fim,total), total);
+  }
+
+  /* ============================================================
+     VISÃO GERAL
+  ============================================================ */
+  function atualizarVisaoGeral() {
+    const temCap    = DataStore.temCaptados();
+    const temCancel = DataStore.temCancelados();
+
+    // Alertas
+    const alertBox = document.getElementById('ov-alerts');
+    alertBox.innerHTML = '';
+    if (!temCap) alertBox.innerHTML += '<div class="alert alert-warning"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Planilha de Captação não foi importada ainda.</div>';
+    if (!temCancel) alertBox.innerHTML += '<div class="alert alert-warning"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Planilha de Cancelamentos não foi importada ainda.</div>';
+
+    if (!temCap && !temCancel) return;
+
+    // Multiselects unificados
+    const todasUnidades = [...new Set([
+      ...FilterEngine.valoresUnicos(DataStore.getCaptados(),'unidade'),
+      ...FilterEngine.valoresUnicos(DataStore.getCancelados(),'unidade')
+    ])].filter(Boolean).sort();
+    const todasSeries = Normalizer.ordenarSeries([...new Set([
+      ...FilterEngine.valoresUnicos(DataStore.getCaptados(),'serieModulo'),
+      ...FilterEngine.valoresUnicos(DataStore.getCancelados(),'serieModulo')
+    ])]);
+
+    criarMultiselect('ms-ov-servico',  ['Educação Infantil','Ensino Fundamental','Ensino Médio']);
+    criarMultiselect('ms-ov-serie',    todasSeries);
+    criarMultiselect('ms-ov-unidade',  todasUnidades);
+
+    const aoFiltrar = () => renderizarVisaoGeral();
+    ['ov-f-data-ini','ov-f-data-fim'].forEach(id =>
+      document.getElementById(id)?.addEventListener('input', aoFiltrar)
+    );
+    ['ms-ov-servico','ms-ov-serie','ms-ov-unidade'].forEach(id =>
+      document.getElementById(id)?.addEventListener('change', aoFiltrar)
+    );
+
+    renderizarVisaoGeral();
+  }
+
+  function obterFiltrosOv() {
+    return {
+      dataIni:  document.getElementById('ov-f-data-ini')?.value || '',
+      dataFim:  document.getElementById('ov-f-data-fim')?.value || '',
+      servicos: document.getElementById('ms-ov-servico')?.getSelected() || [],
+      series:   document.getElementById('ms-ov-serie')?.getSelected()   || [],
+      unidades: document.getElementById('ms-ov-unidade')?.getSelected() || []
+    };
+  }
+
+  function renderizarVisaoGeral() {
+    const filtros   = obterFiltrosOv();
+    const captados  = FilterEngine.filtrar(DataStore.getCaptados(),   filtros);
+    const cancelados= FilterEngine.filtrar(DataStore.getCancelados(), filtros);
+
+    const totalCap    = captados.length;
+    const totalCancel = cancelados.length;
+    const saldo       = totalCap - totalCancel;
+    const base        = totalCap + totalCancel;
+    const retencao    = base > 0 ? ((1 - totalCancel / base) * 100).toFixed(1) : null;
+
+    document.getElementById('ov-kpi-cap').textContent     = totalCap;
+    document.getElementById('ov-kpi-cancel').textContent  = totalCancel;
+    document.getElementById('ov-kpi-saldo').textContent   = (saldo >= 0 ? '+' : '') + saldo;
+    document.getElementById('ov-kpi-saldo').className     = `overview-kpi-value ${saldo >= 0 ? 'ov-positive' : 'ov-negative'}`;
+    document.getElementById('ov-kpi-retencao').textContent= retencao !== null ? `${retencao}%` : '—%';
+
+    // Gráficos
+    ChartBuilder.ovMensal(captados, cancelados);
+    ChartBuilder.ovSerie(captados, cancelados);
+    ChartBuilder.ovUnidade(captados, cancelados);
+    ChartBuilder.ovBubble(captados, cancelados);
+    ChartBuilder.ovArea(captados, cancelados);
+  }
+
+  /* --------- Helpers de tabela --------- */
+  function renderizarPaginacao(containerId, st, total, onChangeFn) {
+    const totalPaginas = Math.ceil(total / st.perPagina);
+    const container    = document.getElementById(containerId);
+    if (!container) return;
+
+    // Monta controles de paginação
+    let html = `<div class="pagination-info">Exibindo ${Math.min((st.pagina-1)*st.perPagina+1,total)}–${Math.min(st.pagina*st.perPagina,total)} de ${total}</div>`;
+    html += '<div class="pagination-controls">';
+    html += `<button class="page-btn" ${st.pagina<=1?'disabled':''} data-p="${st.pagina-1}">‹</button>`;
+
+    const range = [];
+    for (let i = Math.max(1, st.pagina-2); i <= Math.min(totalPaginas, st.pagina+2); i++) range.push(i);
+    if (range[0] > 1) { html += `<button class="page-btn" data-p="1">1</button>`; if (range[0] > 2) html += `<span style="padding:0 4px">…</span>`; }
+    range.forEach(p => { html += `<button class="page-btn ${p===st.pagina?'active':''}" data-p="${p}">${p}</button>`; });
+    if (range[range.length-1] < totalPaginas) { if (range[range.length-1] < totalPaginas-1) html += `<span style="padding:0 4px">…</span>`; html += `<button class="page-btn" data-p="${totalPaginas}">${totalPaginas}</button>`; }
+
+    html += `<button class="page-btn" ${st.pagina>=totalPaginas?'disabled':''} data-p="${st.pagina+1}">›</button>`;
+    html += '</div>';
+    container.innerHTML = html;
+
+    container.querySelectorAll('.page-btn:not([disabled])').forEach(btn => {
+      btn.addEventListener('click', () => {
+        st.pagina = +btn.dataset.p;
+        onChangeFn();
+      });
+    });
+  }
+
+  function renderizarContadorTabela(containerId, ini, fim, total) {
+    // já incluído no renderizarPaginacao
+  }
+
+  function badgeServico(s) {
+    if (!s) return '';
+    if (s.includes('Infantil'))   return 'badge-infantil';
+    if (s.includes('Fundamental'))return 'badge-fundamental';
+    if (s.includes('Médio'))      return 'badge-medio';
+    return '';
+  }
+  function badgeTurno(t) {
+    if (!t) return '';
+    if (t === 'Manhã') return 'badge-manha';
+    if (t === 'Tarde') return 'badge-tarde';
+    return '';
+  }
+  function badgeSituacao(s) {
+    if (!s) return '';
+    if (s === 'RESERVADO')   return 'badge-reservado';
+    if (s === 'MATRICULADO') return 'badge-matriculado';
+    return '';
+  }
+  function formatarDataExib(d) {
+    if (!d) return '-';
+    try {
+      const dt = new Date(d);
+      return dt.toLocaleDateString('pt-BR');
+    } catch { return '-'; }
+  }
+
+  /* --------- Exportar CSV --------- */
+  function exportarCSV(dados, nomeArquivo) {
+    if (!dados || dados.length === 0) {
+      toast('Nenhum dado para exportar.', 'warning');
+      return;
+    }
+    const cols = Object.keys(dados[0]).filter(c => c !== 'tipo');
+    const header = cols.join(';');
+    const linhas = dados.map(row => cols.map(c => {
+      let v = row[c];
+      if (v instanceof Date) v = v.toLocaleDateString('pt-BR');
+      v = String(v||'').replace(/;/g,',');
+      return v;
+    }).join(';'));
+    const csv = '﻿' + [header, ...linhas].join('\n');
+    const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = nomeArquivo;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('CSV exportado com sucesso!', 'success');
+  }
+
+  /* --------- Init --------- */
+  function init() {
+    // Navegação
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+      tab.addEventListener('click', () => navegarPara(tab.dataset.page));
+    });
+
+    // Inputs de arquivo
+    document.getElementById('file-cancelados')?.addEventListener('change', (e) => {
+      ImportManager.lerArquivo(e.target.files[0], 'cancelados');
+      e.target.value = '';
+    });
+    document.getElementById('file-captados')?.addEventListener('change', (e) => {
+      ImportManager.lerArquivo(e.target.files[0], 'captados');
+      e.target.value = '';
+    });
+
+    // Botões Zerar
+    document.getElementById('btn-zerar-cancelados')?.addEventListener('click', () => {
+      modalConfirmar(
+        'Zerar Cancelamentos',
+        'Isso apagará todos os dados de cancelamentos importados. Esta ação não pode ser desfeita.',
+        () => {
+          DataStore.limpar('cancelados');
+          atualizarStatusImportacao();
+          atualizarPagina('cancelamentos');
+          toast('Dados de cancelamentos removidos.', 'warning');
+        }
+      );
+    });
+    document.getElementById('btn-zerar-captados')?.addEventListener('click', () => {
+      modalConfirmar(
+        'Zerar Captação',
+        'Isso apagará todos os dados de captação importados. Esta ação não pode ser desfeita.',
+        () => {
+          DataStore.limpar('captados');
+          atualizarStatusImportacao();
+          atualizarPagina('captacao');
+          toast('Dados de captação removidos.', 'warning');
+        }
+      );
+    });
+
+    // Limpar filtros
+    document.getElementById('btn-cancel-clear-filters')?.addEventListener('click', () => {
+      ['cancel-f-data-ini','cancel-f-data-fim','cancel-f-aluno'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+      ['ms-cancel-unidade','ms-cancel-servico','ms-cancel-serie','ms-cancel-situacao'].forEach(id => { const el = document.getElementById(id); if(el?.reset) el.reset(); });
+      renderizarDashboardCancel(DataStore.getCancelados());
+    });
+    document.getElementById('btn-cap-clear-filters')?.addEventListener('click', () => {
+      ['cap-f-data-ini','cap-f-data-fim','cap-f-aluno'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+      ['ms-cap-unidade','ms-cap-servico','ms-cap-serie','ms-cap-turno'].forEach(id => { const el = document.getElementById(id); if(el?.reset) el.reset(); });
+      renderizarDashboardCap(DataStore.getCaptados());
+    });
+    document.getElementById('btn-ov-clear-filters')?.addEventListener('click', () => {
+      ['ov-f-data-ini','ov-f-data-fim'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+      ['ms-ov-servico','ms-ov-serie','ms-ov-unidade'].forEach(id => { const el = document.getElementById(id); if(el?.reset) el.reset(); });
+      renderizarVisaoGeral();
+    });
+
+    // Busca inline nas tabelas
+    document.getElementById('cancel-table-search')?.addEventListener('input', (e) => {
+      _tableState.cancel.busca  = e.target.value;
+      _tableState.cancel.pagina = 1;
+      renderizarTabelaCancel(_tableState.cancel.dados);
+    });
+    document.getElementById('cap-table-search')?.addEventListener('input', (e) => {
+      _tableState.cap.busca  = e.target.value;
+      _tableState.cap.pagina = 1;
+      renderizarTabelaCap(_tableState.cap.dados);
+    });
+
+    // Ordenação de colunas
+    document.querySelectorAll('#cancel-table thead th[data-col]').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.dataset.col;
+        if (_tableState.cancel.sortCol === col) {
+          _tableState.cancel.sortDir = _tableState.cancel.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          _tableState.cancel.sortCol = col;
+          _tableState.cancel.sortDir = 'asc';
+        }
+        document.querySelectorAll('#cancel-table thead th').forEach(h => h.classList.remove('sorted-asc','sorted-desc'));
+        th.classList.add(`sorted-${_tableState.cancel.sortDir}`);
+        renderizarTabelaCancel(_tableState.cancel.dados);
+      });
+    });
+    document.querySelectorAll('#cap-table thead th[data-col]').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.dataset.col;
+        if (_tableState.cap.sortCol === col) {
+          _tableState.cap.sortDir = _tableState.cap.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          _tableState.cap.sortCol = col;
+          _tableState.cap.sortDir = 'asc';
+        }
+        document.querySelectorAll('#cap-table thead th').forEach(h => h.classList.remove('sorted-asc','sorted-desc'));
+        th.classList.add(`sorted-${_tableState.cap.sortDir}`);
+        renderizarTabelaCap(_tableState.cap.dados);
+      });
+    });
+
+    // Exportar CSV
+    document.getElementById('btn-cancel-export')?.addEventListener('click', () => {
+      exportarCSV(_tableState.cancel.dados, 'cancelamentos_csmm.csv');
+    });
+    document.getElementById('btn-cap-export')?.addEventListener('click', () => {
+      exportarCSV(_tableState.cap.dados, 'captacao_csmm.csv');
+    });
+
+    // ---- NOVOS CONTROLES V2: Abas de Motivos e Select de Fonte de Escolas ----
+
+    // Abas "Por Categoria" / "Frases Frequentes"
+    document.querySelectorAll('.motivos-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.motivos-tab').forEach(t => {
+          t.style.borderBottomColor = 'transparent';
+          t.style.color = 'var(--text-muted)';
+        });
+        tab.style.borderBottomColor = 'var(--negative)';
+        tab.style.color = 'var(--negative)';
+
+        const tipo = tab.dataset.tab;
+        if (tipo === 'categorias') {
+          document.getElementById('painel-categorias').style.display = '';
+          document.getElementById('painel-frases').style.display = 'none';
+          ChartBuilder.cancelMotivosDetalhado(_tableState.cancel.dados);
+        } else {
+          document.getElementById('painel-categorias').style.display = 'none';
+          document.getElementById('painel-frases').style.display = '';
+          ChartBuilder.cancelFrasesFrequentes(_tableState.cancel.dados);
+        }
+      });
+    });
+
+    // Select de fonte das escolas de destino
+    document.getElementById('select-escolas-fonte')?.addEventListener('change', (e) => {
+      ChartBuilder.cancelEscolasDestino(_tableState.cancel.dados, e.target.value);
+      ChartBuilder.cancelBubbleEscolas(_tableState.cancel.dados);
+    });
+
+    // Modal de mapeamento
+    document.getElementById('btn-mapping-confirm')?.addEventListener('click', () => ImportManager.confirmarMapeamento());
+    document.getElementById('btn-mapping-cancel')?.addEventListener('click',  () => ImportManager.fecharModal());
+    document.getElementById('btn-mapping-close')?.addEventListener('click',   () => ImportManager.fecharModal());
+    document.getElementById('modal-mapping')?.addEventListener('click', (e) => {
+      if (e.target === document.getElementById('modal-mapping')) ImportManager.fecharModal();
+    });
+  }
+
+  /* --------- Modal de confirmação --------- */
+  let _confirmCallback = null;
+  function modalConfirmar(titulo, msg, callback) {
+    document.getElementById('confirm-title').textContent = titulo;
+    document.getElementById('confirm-msg').textContent   = msg;
+    _confirmCallback = callback;
+    document.getElementById('modal-confirm').classList.add('open');
+  }
+
+  document.getElementById('btn-confirm-ok')?.addEventListener('click', () => {
+    document.getElementById('modal-confirm').classList.remove('open');
+    if (_confirmCallback) { _confirmCallback(); _confirmCallback = null; }
+  });
+  document.getElementById('btn-confirm-cancel')?.addEventListener('click', () => {
+    document.getElementById('modal-confirm').classList.remove('open');
+    _confirmCallback = null;
+  });
+
+  return {
+    init,
+    toast,
+    showSpinner,
+    hideSpinner,
+    atualizarPagina,
+    atualizarStatusImportacao,
+    navegarPara
+  };
+})();
+
+
+/* ============================================================
+   INICIALIZAÇÃO DO SISTEMA
+============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  // 1. Carrega dados persistidos
+  DataStore.init();
+
+  // 2. Inicializa UI (event listeners)
+  UIManager.init();
+
+  // 3. Atualiza status de importação
+  UIManager.atualizarStatusImportacao();
+
+  // 4. Renderiza a página inicial se já tiver dados
+  if (DataStore.temCancelados()) {
+    UIManager.atualizarPagina('cancelamentos');
+  }
+
+  console.log('✅ CSMM Dashboard inicializado com sucesso!');
+});
+
+</script>
+
+</body>
+</html>
